@@ -2,37 +2,66 @@ import mongoose from "mongoose";
 
 const complaintSchema = new mongoose.Schema(
   {
-    complainerId: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "Complainer",
-      required: true
+    complaintId: {
+      type: String,
+      required: true,
+      unique: true,
+      trim: true
     },
-    createdByAppUserId: {
+
+    filedBy: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "AppUser",
       required: true
     },
+
+    complainer: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Complainer",
+      required: true
+    },
+
+    village: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Village",
+      required: true
+    },
+
     department: {
-      type: String,
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Department",
       required: true
     },
-    issue: {
-      type: String,
+
+    subDepartment: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "SubDepartment",
       required: true
     },
-    description: {
-      type: String,
-      required: true
-    },
+
+    subject: { type: String, required: true, trim: true },
+    description: { type: String, required: true, trim: true },
+
+    media: [
+      {
+        type: { type: String, enum: ["image", "video", "pdf", "audio"], required: true },
+        url: { type: String, required: true }
+      }
+    ],
+
     status: {
       type: String,
-      enum: ["Pending", "Verified", "Forwarded", "In Progress", "Resolved", "Closed"],
-      default: "Pending"
+      enum: ["open", "in-progress", "resolved", "closed"],
+      default: "open"
     },
-    attachmentUrl: {
-      type: String,
-      default: null
-    }
+
+    history: [
+      {
+        message: String,
+        by: { type: mongoose.Schema.Types.ObjectId, ref: "AppUser" }, // Changed to AppUser for consistency
+        timestamp: { type: Date, default: Date.now }
+      }
+    ]
   },
   { timestamps: true }
 );

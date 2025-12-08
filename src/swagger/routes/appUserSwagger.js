@@ -48,6 +48,8 @@
  *               message: "User registered"
  *               appUserId: "A0000001"
  *       400:
+ *         description: Missing fields
+ *       409:
  *         description: Phone already exists
  *       500:
  *         description: Server error
@@ -84,7 +86,11 @@
  *             example:
  *               message: "Login successful"
  *               userId: "A0000001"
+ *               accessToken: "jwt..."
+ *               refreshToken: "jwt..."
  *       400:
+ *         description: Missing fields
+ *       401:
  *         description: Invalid password
  *       404:
  *         description: User not found
@@ -116,6 +122,8 @@
  *           application/json:
  *             example:
  *               question: "What is your pet name?"
+ *       400:
+ *          description: Phone number required
  *       404:
  *         description: User not found
  */
@@ -155,6 +163,8 @@
  *             example:
  *               message: "Password changed successfully"
  *       400:
+ *         description: Missing fields
+ *       401:
  *         description: Wrong answer
  *       404:
  *         description: User not found

@@ -1,6 +1,5 @@
-// controllers/villageController.js
-
 import Village from "../models/villageModel.js";
+import Taluka from "../models/talukaModel.js";
 import Counter from "../models/counterModel.js";
 import { generateVillageId } from "../utils/generateIds.js";
 
@@ -12,26 +11,33 @@ export const createVillage = async (req, res) => {
   try {
     const { name, talukaId } = req.body;
 
-    // Validate input
+    // Validate name fields
     if (!name || !name.en || !name.mr) {
       return res.status(400).json({
         message: "Both English (en) and Marathi (mr) names are required."
       });
     }
 
+    // Validate talukaId
     if (!talukaId) {
       return res.status(400).json({ message: "talukaId is required" });
     }
 
+    // Find Taluka by talukaId (string)
+    const taluka = await Taluka.findOne({ talukaId: talukaId });
+    if (!taluka) {
+      return res.status(404).json({
+        message: "Taluka not found with given talukaId"
+      });
+    }
+
+    // Auto-generate villageId
     const villageId = await generateVillageId();
 
     const newVillage = new Village({
       villageId,
-      talukaId,
-      name: {
-        en: name.en,
-        mr: name.mr
-      }
+      name,
+      taluka: taluka._id   // Store ObjectId
     });
 
     await newVillage.save();
@@ -54,7 +60,9 @@ export const createVillage = async (req, res) => {
 // ==========================
 export const getAllVillages = async (req, res) => {
   try {
-    const villages = await Village.find().sort({ createdAt: -1 });
+    const villages = await Village.find()
+      .populate("taluka") // include taluka info
+      .sort({ createdAt: -1 });
 
     res.status(200).json({
       message: "Village list fetched successfully",
@@ -70,13 +78,22 @@ export const getAllVillages = async (req, res) => {
 
 
 // ==========================
-// Get Villages by Taluka ID
+// Get Villages by Taluka (string talukaId)
 // ==========================
 export const getVillageByTaluka = async (req, res) => {
   try {
     const { talukaId } = req.params;
 
-    const villages = await Village.find({ talukaId });
+    // Find Taluka document by talukaId
+    const taluka = await Taluka.findOne({ talukaId });
+    if (!taluka) {
+      return res.status(404).json({
+        message: "Taluka not found with given talukaId"
+      });
+    }
+
+    const villages = await Village.find({ taluka: taluka._id })
+      .populate("taluka");
 
     res.status(200).json({
       message: "Villages fetched successfully",
@@ -92,7 +109,7 @@ export const getVillageByTaluka = async (req, res) => {
 
 
 // ==========================
-// Update Village by villageId
+// Update Village by villageId (string)
 // ==========================
 export const updateVillage = async (req, res) => {
   try {
@@ -107,12 +124,7 @@ export const updateVillage = async (req, res) => {
 
     const updated = await Village.findOneAndUpdate(
       { villageId },
-      {
-        name: {
-          en: name.en,
-          mr: name.mr
-        }
-      },
+      { name },
       { new: true }
     );
 

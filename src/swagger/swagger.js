@@ -13,11 +13,32 @@ const options = {
     info: {
       title: "Dharashiv Loksabha API Documentation",
       version: "1.0.0",
-      description: "Official API documentation for Dharashiv Loksabha Project",
+      description: "Official API documentation for Dharashiv Loksabha Project. \n\n**Authentication**: Most endpoints require a Bearer Token. Use `/api/auth/login` to get one.",
     },
+    servers: [
+      {
+        url: "http://localhost:4000",
+        description: "Local Development Server"
+      }
+    ],
+    components: {
+      securitySchemes: {
+        bearerAuth: {
+          type: "http",
+          scheme: "bearer",
+          bearerFormat: "JWT",
+        },
+      },
+      schemas: {} // Will be populated by files
+    },
+    security: [
+      {
+        bearerAuth: [],
+      },
+    ],
   },
   apis: [
-    path.join(__dirname, "./routes/*.js"),
+    path.join(__dirname, "./routes/*.js"), // Scan local swagger definitions
     path.join(__dirname, "./components/schemas/*.js"),
   ],
 };
@@ -25,16 +46,12 @@ const options = {
 const swaggerSpec = swaggerJsdoc(options);
 
 export const swaggerDocs = (app) => {
-  // Serve CSS file
-  app.use("/swagger-custom.css", express.static(path.join(__dirname, "custom.css")));
-
   // Setup Swagger UI
   app.use(
     "/api-docs",
     swaggerUi.serve,
     swaggerUi.setup(swaggerSpec, {
-      customCssUrl: "/swagger-custom.css",
-      customSiteTitle: "Dharashiv Loksabha API",
+      customSiteTitle: "Dharashiv Loksabha API"
     })
   );
 

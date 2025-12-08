@@ -5,34 +5,55 @@
  *     Complaint:
  *       type: object
  *       required:
- *         - complainerId
- *         - createdByAppUserId
+ *         - complaintId
+ *         - filedBy
+ *         - complainer
+ *         - village
  *         - department
- *         - issue
+ *         - subDepartment
+ *         - subject
  *         - description
  *       properties:
- *         complainerId:
+ *         _id:
  *           type: string
- *         createdByAppUserId:
+ *         complaintId:
  *           type: string
+ *           description: Custom ID (e.g. CMP-A1B2-C3D4-001)
+ *         filedBy:
+ *           type: string
+ *           description: AppUser ID (ObjectId or String)
+ *         complainer:
+ *           type: string
+ *           description: Complainer ID
+ *         village:
+ *           type: string
+ *           description: Village ID
  *         department:
  *           type: string
- *         issue:
+ *           description: Department ID
+ *         subDepartment:
+ *           type: string
+ *           description: SubDepartment ID
+ *         subject:
  *           type: string
  *         description:
  *           type: string
  *         status:
  *           type: string
- *           enum: ["Pending", "Verified", "Forwarded", "In Progress", "Resolved", "Closed"]
- *         attachmentUrl:
- *           type: string
- *           nullable: true
+ *           enum: [open, in-progress, resolved, closed]
+ *         media:
+ *           type: array
+ *           items:
+ *             type: object
+ *             properties:
+ *               type: 
+ *                 type: string
+ *                 enum: [image, video, pdf, audio]
+ *               url:
+ *                 type: string
  *       example:
- *         complainerId: "CID00000001"
- *         createdByAppUserId: "A00000001"
- *         department: "Water Department"
- *         issue: "No water supply"
- *         description: "Last 3 days no water"
- *         status: "Pending"
- *         attachmentUrl: null
+ *         complaintId: "CMP-001"
+ *         subject: "Water Leakage"
+ *         description: "Pipe burst near main road"
+ *         status: "open"
  */

@@ -35,3 +35,44 @@ export async function generateVillageId() {
   const padded = counter.seq.toString().padStart(4, "0"); // 4 digits → 0001, 0002...
   return `VLG${padded}`;  // Example → VLG0001
 }
+
+// =============================
+// Generate Department ID
+// =============================
+export const generateDepartmentId = async () => {
+  const counter = await Counter.findByIdAndUpdate(
+    "departmentId",
+    { $inc: { seq: 1 } },
+    { new: true, upsert: true }
+  );
+
+  const seqNum = counter.seq.toString().padStart(4, "0");
+  return `DEP${seqNum}`;
+};
+
+// =============================
+// Generate Complainer ID
+// =============================
+export const generateComplainerId = async () => {
+  const counter = await Counter.findByIdAndUpdate(
+    "complainerId",
+    { $inc: { seq: 1 } },
+    { new: true, upsert: true }
+  );
+
+  const seqNum = counter.seq.toString().padStart(4, "0");
+  return `COMP${seqNum}`;
+};
+
+// =============================
+// Generate SubDepartment ID
+// =============================
+export const generateSubDeptId = async () => {
+  const counter = await Counter.findByIdAndUpdate(
+    "subDeptId",
+    { $inc: { seq: 1 } },
+    { new: true, upsert: true }
+  );
+  const seqNum = counter.seq.toString().padStart(4, "0");
+  return `SUB${seqNum}`;
+};

@@ -1,8 +1,8 @@
 import mongoose from "mongoose";
 
-const villageSchema = new mongoose.Schema(
+const departmentSchema = new mongoose.Schema(
   {
-    villageId: {
+    deptId: {
       type: String,
       required: true,
       unique: true,
@@ -22,14 +22,19 @@ const villageSchema = new mongoose.Schema(
       }
     },
 
-    // Relation to Taluka
-    taluka: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "Taluka",
-      required: true
+    level: {
+      type: String,
+      enum: ["taluka", "cluster", "village", "town", "district"],
+      required: true,
+      trim: true
+    },
+
+    description: {
+      type: String,
+      trim: true
     }
   },
   { timestamps: true }
 );
 
-export default mongoose.model("Village", villageSchema);
+export default mongoose.model("Department", departmentSchema);

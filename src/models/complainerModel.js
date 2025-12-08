@@ -2,6 +2,12 @@ import mongoose from "mongoose";
 
 const complainerSchema = new mongoose.Schema(
   {
+    complainerId: {
+      type: String,
+      required: true,
+      unique: true,
+      trim: true
+    },
     name: {
       type: String,
       required: true,
@@ -19,9 +25,10 @@ const complainerSchema = new mongoose.Schema(
       type: String,
       required: true
     },
-    address: {
-      type: String,
-      default: ""
+    addedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "AppUser",
+      required: true
     }
   },
   { timestamps: true }
