@@ -8,18 +8,18 @@ import {
     getComplaintsByAppUser
 } from "../controllers/complaintController.js";
 import upload from "../middlewares/uploadMiddleware.js";
-import { verifyToken } from "../middlewares/authMiddleware.js";
+import { adminVerifyToken } from "../middlewares/authMiddleware.js";
 
 const router = express.Router();
 
 // Protected Routes
 // Protected Routes
 
-router.post("/", verifyToken, upload.array("media", 10), createComplaint);
-router.get("/", verifyToken, getAllComplaints);
-router.get("/user/:appUserId", verifyToken, getComplaintsByAppUser);
-router.get("/:id", verifyToken, getComplaintById);
-router.put("/:id/status", verifyToken, updateComplaintStatus);
+router.post("/", adminVerifyToken, upload.array("media", 10), createComplaint);
+router.get("/",adminVerifyToken, getAllComplaints);
+router.get("/user/:appUserId", adminVerifyToken, getComplaintsByAppUser);
+router.get("/:id",adminVerifyToken, getComplaintById);
+router.put("/:id/status", adminVerifyToken, updateComplaintStatus);
 
 // Public Routes
 router.get("/track/:complaintId", trackComplaint);

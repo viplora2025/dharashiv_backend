@@ -113,20 +113,45 @@ export const resendOtp = async (req, res) => {
 
 // ... (Rest of your GET, UPDATE, DELETE controllers remain the same)
 /* ================= LOGIN ================= */
+// export const loginAdmin = async (req, res) => {
+//   try {
+//     const { email, password } = req.body;
+
+//     const admin = await Admin.findOne({ email });
+//     if (!admin) return res.status(404).json({ message: "Admin not found" });
+
+//     const match = await bcrypt.compare(password, admin.password);
+//     if (!match) return res.status(401).json({ message: "Invalid credentials" });
+
+//     const token = jwt.sign(
+//       { id: admin._id, adminId: admin.adminId },
+//       process.env.JWT_SECRET,
+//       { expiresIn: "1d" }
+//     );
+
+//     res.json({ message: "Login successful", token, admin });
+//   } catch (err) {
+//     res.status(500).json({ error: err.message });
+//   }
+// };
+/* ================= LOGIN ================= */
 export const loginAdmin = async (req, res) => {
   try {
     const { email, password } = req.body;
 
+    // Find admin by email
     const admin = await Admin.findOne({ email });
     if (!admin) return res.status(404).json({ message: "Admin not found" });
 
+    // Check password
     const match = await bcrypt.compare(password, admin.password);
     if (!match) return res.status(401).json({ message: "Invalid credentials" });
 
+    // Generate JWT using correct secret from .env
     const token = jwt.sign(
-      { id: admin._id, adminId: admin.adminId },
-      process.env.JWT_SECRET,
-      { expiresIn: "1d" }
+      { id: admin._id, adminId: admin.adminId, role: admin.role },
+      process.env.ACCESS_TOKEN_SECRET, // <--- corrected
+      { expiresIn: process.env.ACCESS_TOKEN_EXPIRE || "1d" }
     );
 
     res.json({ message: "Login successful", token, admin });
