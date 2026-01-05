@@ -7,7 +7,8 @@ import {
   getVillageByTaluka,
   updateVillage,
   deleteVillage,
-  resetVillageCounter
+  resetVillageCounter,
+  getVillageByTalukaObjectId
 } from "../controllers/villageController.js";
 import { auth, adminOnly,superAdminOnly } from "../middlewares/authMiddleware.js";
 
@@ -30,5 +31,8 @@ router.delete("/delete/:villageId", auth, superAdminOnly, deleteVillage);
 
 // Reset Counter
 router.put("/reset-counter", auth, superAdminOnly, resetVillageCounter);
+
+
+router.get("/by2-taluka/:talukaObjectId", auth, getVillageByTalukaObjectId);
 
 export default router;
