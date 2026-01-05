@@ -113,7 +113,7 @@ export const getAllComplaints = async (req, res) => {
 
     const complaints = await Complaint.find(filter)
       .populate("filedBy", "name phone appUserId")
-      .populate("complainer", "name complainerId")
+      .populate("complainer", "name complainerId taluka village")
       .populate("department", "name")
       .sort({ createdAt: -1 });
 
@@ -128,7 +128,7 @@ export const getComplaintById = async (req, res) => {
   try {
     const complaint = await Complaint.findById(req.params.id)
       .populate("filedBy", "name phone appUserId")
-      .populate("complainer", "name complainerId")
+      .populate("complainer", "name complainerId taluka village")
       .populate("department", "name");
 
     if (!complaint) {
@@ -159,6 +159,7 @@ export const getComplaintsByComplainer = async (req, res) => {
     const complaints = await Complaint.find({ complainer: complainerId })
       .populate("department", "name")
       .populate("filedBy", "name appUserId")
+      .populate("complainer", "name complainerId taluka village")
       .sort({ createdAt: -1 });
 
     res.json(complaints);
