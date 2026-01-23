@@ -112,20 +112,15 @@ export const deleteComplainer = async (req, res) => {
 
 
 // ==========================
-// Get Complainers by User + Taluka (with pagination)
+// Get Complainers by User + Taluka 
 // ==========================
 export const getComplainersByUserAndTaluka = async (req, res) => {
   try {
     const { userId, talukaId } = req.query;
 
-    const page = parseInt(req.query.page) || 1;
-    const limit = parseInt(req.query.limit) || 10;
-
     const data = await getComplainersByUserAndTalukaService(
       userId,
-      talukaId,
-      page,
-      limit
+      talukaId
     );
 
     res.status(200).json({

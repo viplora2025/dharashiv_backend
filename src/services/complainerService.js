@@ -181,9 +181,7 @@ export const deleteComplainerService = async (id) => {
 // ==========================
 export const getComplainersByUserAndTalukaService = async (
   userId,
-  talukaId,
-  page = 1,
-  limit = 10
+  talukaId
 ) => {
   if (
     !mongoose.Types.ObjectId.isValid(userId) ||
@@ -192,35 +190,23 @@ export const getComplainersByUserAndTalukaService = async (
     throw new Error("Invalid userId or talukaId.");
   }
 
-  const skip = (page - 1) * limit;
-
   const filter = {
     addedBy: userId,
     taluka: talukaId
   };
 
-  const [complainers, totalRecords] = await Promise.all([
-    Complainer.find(filter)
-      .populate("taluka", "name")
-      .populate("village", "name")
-      .populate("addedBy", "name phone")
-      .sort({ createdAt: -1 })
-      .skip(skip)
-      .limit(limit),
-
-    Complainer.countDocuments(filter)
-  ]);
-
-  const totalPages = Math.ceil(totalRecords / limit);
+  const complainers = await Complainer.find(filter)
+    .populate("taluka", "name")
+    .populate("village", "name")
+    .populate("addedBy", "name phone")
+    .sort({ createdAt: -1 });
 
   return {
-    page,
-    limit,
-    totalRecords,
-    totalPages,
+    totalRecords: complainers.length,
     data: complainers
   };
 };
+
 
 
 
