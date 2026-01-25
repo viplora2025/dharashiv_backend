@@ -26,7 +26,7 @@ const complaintSchema = new mongoose.Schema(
       ref: "Department",
       required: true
     },
-    
+
     specification: {
       type: String,
       trim: true
@@ -44,14 +44,16 @@ const complaintSchema = new mongoose.Schema(
       trim: true
     },
 
+    /* 📎 Complaint media (initial attachments) */
     media: [
       {
         type: {
           type: String,
-          enum: ["image", "video", "pdf", "audio"],
-          
+          enum: ["image", "video", "pdf", "audio"]
         },
-        url: { type: String,  }
+        url: {
+          type: String
+        }
       }
     ],
 
@@ -61,14 +63,25 @@ const complaintSchema = new mongoose.Schema(
       default: "open"
     },
 
-    /* ================= DISCUSSION / HISTORY ================= */
+    /* ================= CHAT / HISTORY ================= */
     history: [
       {
         message: {
           type: String,
-          required: true,
-          trim: true
+          trim: true   // ❗ no longer required
         },
+
+        media: [
+          {
+            type: {
+              type: String,
+              enum: ["image", "video", "pdf", "audio"]
+            },
+            url: {
+              type: String
+            }
+          }
+        ],
 
         by: {
           type: mongoose.Schema.Types.ObjectId,

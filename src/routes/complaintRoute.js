@@ -1,41 +1,61 @@
 import express from "express";
 
 import {
-    createComplaint,
-    getAllComplaints,
-    getComplaintById,
-    updateComplaintStatus,
-    trackComplaint,
-    getComplaintsByAppUser,
-    getComplaintsByComplainer,
-    getComplaintHistory,
-    addChatMessage
+  createComplaint,
+  getAllComplaints,
+  getComplaintById,
+  updateComplaintStatus,
+  trackComplaint,
+  getMyComplaints,
+  getComplaintsByComplainer,
+  getComplaintChat,
+  addChatMessage
 } from "../controllers/complaintController.js";
+
 import upload from "../middlewares/uploadMiddleware.js";
-import { auth ,adminOnly } from "../middlewares/authMiddleware.js";
+import { auth, adminOnly } from "../middlewares/authMiddleware.js";
 
 const router = express.Router();
 
-// Protected Routes
-// Protected Routes
-
+/* ===================================================== */
+/* ================= CREATE COMPLAINT ================== */
+/* ===================================================== */
 router.post(
   "/complaints",
   auth,
-  upload.array("media", 5), // 👈 always attach multer
+  upload.array("media", 5),
   createComplaint
 );
 
+/* ===================================================== */
+/* ================= ADMIN / SUPERADMIN ================= */
+/* ===================================================== */
 router.get("/", auth, adminOnly, getAllComplaints);
-router.get("/user/:appUserId", auth, getComplaintsByAppUser);
+router.put("/:id/status", auth, adminOnly, updateComplaintStatus);
+
+/* ===================================================== */
+/* ================= USER ROUTES ======================= */
+/* ===================================================== */
+router.get("/my", auth, getMyComplaints);
 router.get("/by-complainer/:complainerId", auth, getComplaintsByComplainer);
 router.get("/:id", auth, getComplaintById);
-router.put("/:id/status", auth, adminOnly, updateComplaintStatus);
-// Public Routes
-router.get("/track/:complaintId", auth ,trackComplaint);
-router.get("/:id/history", auth, getComplaintHistory);
-router.post("/:id/chat", auth, addChatMessage);
 
+/* ===================================================== */
+/* ================= CHAT ============================== */
+/* ===================================================== */
+router.post(
+  "/:id/chat",
+  auth,
+  upload.array("media", 5),
+  addChatMessage
+);
 
+router.get("/:id/chat", auth, getComplaintChat);
+
+/* ===================================================== */
+/* ================= PUBLIC TRACKING =================== */
+/* ===================================================== */
+/* ⚠️ MUST be AFTER other routes to avoid conflict */
+router.get("/track/:complaintId", trackComplaint);
 
 export default router;
