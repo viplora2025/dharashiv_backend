@@ -5,7 +5,8 @@ import Counter from "../models/counterModel.js";
 import cloudinary from "../config/cloudinary.js";
 import mongoose from "mongoose";
 import generateComplaintId from "../utils/generateComplaintId.js";
-
+import Admin from "../models/adminModel.js";
+import { io } from "../server.js";
 /* ===================================================== */
 /* ================= CREATE COMPLAINT ================== */
 /* ===================================================== */
@@ -19,13 +20,17 @@ export const createComplaintService = async (req) => {
 
   const filedBy = req.user._id;
 
+  // 🔍 Validate complainer
   const complainerDoc = await Complainer.findById(complainer);
-  if (!complainerDoc) throw new Error("Complainer not found");
+  if (!complainerDoc) {
+    throw new Error("Complainer not found");
+  }
 
   if (complainerDoc.addedBy.toString() !== filedBy.toString()) {
     throw new Error("You cannot use this complainer");
   }
 
+  /* 📤 Upload media */
   let media = [];
   if (req.files?.length) {
     media = await Promise.all(
@@ -46,17 +51,25 @@ export const createComplaintService = async (req) => {
 
         const upload = await cloudinary.uploader.upload(
           `data:${file.mimetype};base64,${file.buffer.toString("base64")}`,
-          { folder: "complaints", resource_type: resourceType }
+          {
+            folder: "complaints",
+            resource_type: resourceType
+          }
         );
 
-        return { type, url: upload.secure_url };
+        return {
+          type,
+          url: upload.secure_url
+        };
       })
     );
   }
 
+  /* 🆔 Generate complaint ID */
   const complaintId = await generateComplaintId(filedBy, complainer);
 
-  return await Complaint.create({
+  /* 📝 Create complaint */
+  const complaint = await Complaint.create({
     complaintId,
     filedBy,
     complainer,
@@ -74,6 +87,28 @@ export const createComplaintService = async (req) => {
       }
     ]
   });
+
+  /* 🔔 SOCKET NOTIFICATION → TALUKA ADMINS */
+  try {
+    const talukaId = complainerDoc.taluka;
+
+    const admins = await Admin.find({
+      assignedTaluka: talukaId
+    });
+
+    admins.forEach((admin) => {
+      io.to(`admin:${admin.adminId}`).emit("complaint:new", {
+        complaintId: complaint._id,
+        subject: complaint.subject,
+        talukaId
+      });
+    });
+  } catch (err) {
+    // ❗ socket fail hua toh complaint create fail nahi honi chahiye
+    console.error("Socket emit failed (complaint:new):", err.message);
+  }
+
+  return complaint;
 };
 
 /* ===================================================== */
