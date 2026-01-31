@@ -7,7 +7,7 @@ const refreshTokenSchema = new mongoose.Schema(
     userId: { type: String, required: true }, // appUserId / adminId
     role: {
       type: String,
-      enum: ["user", "admin", "superadmin"],
+      enum: ["user", "admin", "superadmin","staff"],
       required: true
     },
 
