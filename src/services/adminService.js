@@ -60,13 +60,18 @@ export const loginAdminService = async ({ email, password }) => {
 
   const payload = {
     id: admin.adminId,
-    role: admin.role
+    role: admin.role,
+    name: admin.name,
+    email: admin.email
   };
 
   return {
     accessToken: await generateAccessToken(payload),
     refreshToken: await generateRefreshToken(payload),
-    role: admin.role
+    role: admin.role,
+    name: admin.name,
+    email: admin.email,
+    id: admin.adminId
   };
 };
 
