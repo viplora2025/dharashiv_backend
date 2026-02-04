@@ -6,7 +6,8 @@ import {
   getDepartmentById,
   updateDepartment,
   deleteDepartment,
-  resetDepartmentCounter
+  resetDepartmentCounter,
+  bulkCreateDepartments
 } from "../controllers/departmentController.js";
 
 import { auth, adminOnly,superAdminOnly } from "../middlewares/authMiddleware.js";
@@ -27,5 +28,7 @@ router.delete("/delete/:deptId", auth, superAdminOnly, deleteDepartment);
 
 // Reset Counter
 router.post("/reset-counter", auth, superAdminOnly, resetDepartmentCounter);
+
+router.post("/bulk", auth, superAdminOnly, bulkCreateDepartments);
 
 export default router;

@@ -4,7 +4,7 @@ import jwt from "jsonwebtoken";
 import Admin from "../models/adminModel.js";
 import AppUser from "../models/appUserModel.js";
 
-/* ================= AUTH (USER + ADMIN + SUPERADMIN) ================= */
+/* ================= AUTH (USER + STAFF + ADMIN + SUPERADMIN) ================= */
 export const auth = async (req, res, next) => {
   try {
     const authHeader = req.headers.authorization;
@@ -16,15 +16,13 @@ export const auth = async (req, res, next) => {
 
     const token = authHeader.split(" ")[1];
 
-    // 2️⃣ Verify access token (expiry auto handled by JWT)
+    // 2️⃣ Verify token
     const decoded = jwt.verify(
       token,
       process.env.ACCESS_TOKEN_SECRET
     );
 
-    // 3️⃣ Role-based user fetch
-
-    // 👤 APP USER
+    /* ================= APP USER ================= */
     if (decoded.role === "user") {
       const user = await AppUser.findOne({
         appUserId: decoded.id
@@ -38,8 +36,8 @@ export const auth = async (req, res, next) => {
       req.role = "user";
     }
 
-    // 🛡 ADMIN / 👑 SUPERADMIN
-    else if (decoded.role === "admin" || decoded.role === "superadmin") {
+    /* ================= STAFF / ADMIN / SUPERADMIN ================= */
+    else if (["staff", "admin", "superadmin"].includes(decoded.role)) {
       const admin = await Admin.findOne({
         adminId: decoded.id
       });
@@ -52,14 +50,13 @@ export const auth = async (req, res, next) => {
       req.role = decoded.role;
     }
 
-    // ❌ Unknown role
+    /* ================= INVALID ROLE ================= */
     else {
       return res.status(403).json({ message: "Invalid role in token" });
     }
 
     next();
   } catch (err) {
-    // 🔐 Token errors (exactly matching current setup)
     if (err.name === "TokenExpiredError") {
       return res.status(401).json({ message: "Access token expired" });
     }
@@ -72,7 +69,7 @@ export const auth = async (req, res, next) => {
   }
 };
 
-/* ================= SUPER ADMIN ONLY ================= */
+/* ================= SUPERADMIN ONLY ================= */
 export const superAdminOnly = (req, res, next) => {
   if (req.role !== "superadmin") {
     return res.status(403).json({ message: "SuperAdmin only" });
@@ -84,6 +81,14 @@ export const superAdminOnly = (req, res, next) => {
 export const adminOnly = (req, res, next) => {
   if (!["admin", "superadmin"].includes(req.role)) {
     return res.status(403).json({ message: "Admin access only" });
+  }
+  next();
+};
+
+/* ================= STAFF + ADMIN + SUPERADMIN ================= */
+export const staffOnly = (req, res, next) => {
+  if (!["staff", "admin", "superadmin"].includes(req.role)) {
+    return res.status(403).json({ message: "Staff access only" });
   }
   next();
 };

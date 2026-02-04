@@ -9,7 +9,8 @@ import {
   updateVillage,
   deleteVillage,
   resetVillageCounter,
-  getVillageByTalukaObjectId
+  getVillageByTalukaObjectId,
+  createMultipleVillages
 } from "../controllers/villageController.js";
 import { auth, adminOnly,superAdminOnly } from "../middlewares/authMiddleware.js";
 
@@ -35,5 +36,7 @@ router.put("/reset-counter", auth, superAdminOnly, resetVillageCounter);
 
 
 router.get("/by2-taluka/:talukaObjectId", auth, getVillageByTalukaObjectId);
+
+router.post("/bulk", auth, adminOnly, createMultipleVillages);
 
 export default router;

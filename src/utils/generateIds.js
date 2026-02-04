@@ -1,5 +1,6 @@
 import Counter from "../models/counterModel.js";
 import Department from "../models/departmentModel.js";
+import Event from "../models/eventModel.js";  
 
 export async function generateAppUserId() {
   const counter = await Counter.findByIdAndUpdate(
@@ -129,3 +130,40 @@ export async function generateAdminId() {
   const padded = counter.seq.toString().padStart(6, "0");
   return `ADM${padded}`; // Example => ADM000001
 }
+
+
+// =============================
+// Generate Event ID
+// Format: EVT0001
+// =============================
+export const generateEventId = async () => {
+  let counter = await Counter.findByIdAndUpdate(
+    "eventId",
+    { $inc: { seq: 1 } },
+    { new: true, upsert: true }
+  );
+
+  let eventId = "EVT" + counter.seq.toString().padStart(6, "0");
+
+  // Safety check (rare case)
+  const exists = await Event.findOne({ eventId }).lean();
+  if (!exists) return eventId;
+
+  console.warn(`⚠️ Duplicate detected for ${eventId}, resyncing...`);
+
+  // Auto-fix counter from DB
+  const lastEvent = await Event.findOne().sort({ eventId: -1 }).lean();
+  const lastSeq = lastEvent
+    ? parseInt(lastEvent.eventId.replace("EVT", ""))
+    : 0;
+
+  counter = await Counter.findByIdAndUpdate(
+    "eventId",
+    { seq: lastSeq + 1 },
+    { new: true, upsert: true }
+  );
+
+  eventId = "EVT" + counter.seq.toString().padStart(4, "0");
+
+  return eventId;
+};

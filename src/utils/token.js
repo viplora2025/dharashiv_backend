@@ -4,7 +4,7 @@ import RefreshToken from "../models/refreshTokenModel.js";
 /* ================= ACCESS TOKEN ================= */
 export const generateAccessToken = ({ id, role }) => {
   const expiresIn =
-    role === "admin" || role === "superadmin"
+    role === "admin" || role === "superadmin"|| role === "staff"
       ? process.env.ADMIN_ACCESS_TOKEN_EXPIRE
       : process.env.USER_ACCESS_TOKEN_EXPIRE;
 
@@ -18,12 +18,12 @@ export const generateAccessToken = ({ id, role }) => {
 /* ================= REFRESH TOKEN ================= */
 export const generateRefreshToken = async ({ id, role }) => {
   const expiresIn =
-    role === "admin" || role === "superadmin"
+    role === "admin" || role === "superadmin"||role === "staff"
       ? process.env.ADMIN_REFRESH_TOKEN_EXPIRE
       : process.env.USER_REFRESH_TOKEN_EXPIRE;
 
   const expireDays =
-    role === "admin" || role === "superadmin"
+    role === "admin" || role === "superadmin"||role === "staff"
       ? Number(process.env.ADMIN_REFRESH_TOKEN_EXPIRE_DAYS)
       : Number(process.env.USER_REFRESH_TOKEN_EXPIRE_DAYS);
 

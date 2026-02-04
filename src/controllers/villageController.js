@@ -1,230 +1,142 @@
-import Village from "../models/villageModel.js";
-import Taluka from "../models/talukaModel.js";
-import Counter from "../models/counterModel.js";
-import { generateVillageId } from "../utils/generateIds.js";
+// src/controllers/villageController.js
 
+import {
+  createVillageService,
+  getAllVillagesService,
+  getVillageByTalukaService,
+  getVillageByTalukaObjectIdService,
+  updateVillageService,
+  deleteVillageService,
+  resetVillageCounterService,
+  createMultipleVillagesService
+} from "../services/villageService.js";
 
-// ==========================
-// Create Village
-// ==========================
+/* ================= CREATE VILLAGE ================= */
 export const createVillage = async (req, res) => {
   try {
-    const { name, talukaId } = req.body;
-
-    // Validate name fields
-    if (!name || !name.en || !name.mr) {
-      return res.status(400).json({
-        message: "Both English (en) and Marathi (mr) names are required."
-      });
-    }
-
-    // Validate talukaId
-    if (!talukaId) {
-      return res.status(400).json({ message: "talukaId is required" });
-    }
-
-    // Find Taluka by talukaId (string)
-    const taluka = await Taluka.findOne({ talukaId: talukaId });
-    if (!taluka) {
-      return res.status(404).json({
-        message: "Taluka not found with given talukaId"
-      });
-    }
-
-    // Auto-generate villageId
-    const villageId = await generateVillageId();
-
-    const newVillage = new Village({
-      villageId,
-      name,
-      taluka: taluka._id   // Store ObjectId
-    });
-
-    await newVillage.save();
+    const village = await createVillageService(req.body);
 
     res.status(201).json({
       message: "Village created successfully",
-      data: newVillage
+      data: village
     });
-
   } catch (error) {
-    console.error("Error creating village:", error);
-    res.status(500).json({ message: "Internal server error" });
+    res.status(400).json({ message: error.message });
   }
 };
 
-
-
-// ==========================
-// Get All Villages
-// ==========================
+/* ================= GET ALL VILLAGES ================= */
 export const getAllVillages = async (req, res) => {
   try {
-    const villages = await Village.find()
-      .populate("taluka") // include taluka info
-      .sort({ createdAt: -1 });
+    const villages = await getAllVillagesService();
 
     res.status(200).json({
       message: "Village list fetched successfully",
       data: villages
     });
-
   } catch (error) {
-    console.error("Error fetching villages:", error);
     res.status(500).json({ message: "Internal server error" });
   }
 };
 
-
-
-// ==========================
-// Get Villages by Taluka (string talukaId)
-// ==========================
+/* ================= GET VILLAGES BY TALUKA (STRING ID) ================= */
 export const getVillageByTaluka = async (req, res) => {
   try {
-    const { talukaId } = req.params;
-
-    // Find Taluka document by talukaId
-    const taluka = await Taluka.findOne({ talukaId });
-    if (!taluka) {
-      return res.status(404).json({
-        message: "Taluka not found with given talukaId"
-      });
-    }
-
-    const villages = await Village.find({ taluka: taluka._id })
-      .populate("taluka");
+    const villages = await getVillageByTalukaService(req.params.talukaId);
 
     res.status(200).json({
       message: "Villages fetched successfully",
       data: villages
     });
-
   } catch (error) {
-    console.error("Error fetching villages by taluka:", error);
+    if (error.message.includes("Taluka not found")) {
+      return res.status(404).json({ message: error.message });
+    }
     res.status(500).json({ message: "Internal server error" });
   }
 };
 
+/* ================= GET VILLAGES BY TALUKA (OBJECT ID) ================= */
+export const getVillageByTalukaObjectId = async (req, res) => {
+  try {
+    const villages =
+      await getVillageByTalukaObjectIdService(req.params.talukaObjectId);
 
+    res.status(200).json({
+      message: "Villages fetched successfully",
+      data: villages
+    });
+  } catch (error) {
+    if (
+      error.message === "Invalid Taluka ObjectId" ||
+      error.message === "No villages found for this taluka"
+    ) {
+      return res.status(400).json({ message: error.message });
+    }
+    res.status(500).json({ message: "Internal server error" });
+  }
+};
 
-// ==========================
-// Update Village by villageId (string)
-// ==========================
+/* ================= UPDATE VILLAGE ================= */
 export const updateVillage = async (req, res) => {
   try {
-    const { villageId } = req.params;
-    const { name } = req.body;
-
-    if (!name || !name.en || !name.mr) {
-      return res.status(400).json({
-        message: "English (en) and Marathi (mr) names are required."
-      });
-    }
-
-    const updated = await Village.findOneAndUpdate(
-      { villageId },
-      { name },
-      { new: true }
+    const updated = await updateVillageService(
+      req.params.villageId,
+      req.body.name
     );
-
-    if (!updated) {
-      return res.status(404).json({ message: "Village not found" });
-    }
 
     res.status(200).json({
       message: "Village updated successfully",
       data: updated
     });
-
   } catch (error) {
-    console.error("Error updating village:", error);
-    res.status(500).json({ message: "Internal server error" });
+    if (error.message === "Village not found") {
+      return res.status(404).json({ message: error.message });
+    }
+    res.status(400).json({ message: error.message });
   }
 };
 
-
-
-// ==========================
-// Delete Village
-// ==========================
+/* ================= DELETE VILLAGE ================= */
 export const deleteVillage = async (req, res) => {
   try {
-    const { villageId } = req.params;
-
-    const deleted = await Village.findOneAndDelete({ villageId });
-
-    if (!deleted) {
-      return res.status(404).json({ message: "Village not found" });
-    }
+    await deleteVillageService(req.params.villageId);
 
     res.status(200).json({
       message: "Village deleted successfully"
     });
-
   } catch (error) {
-    console.error("Error deleting village:", error);
+    if (error.message === "Village not found") {
+      return res.status(404).json({ message: error.message });
+    }
     res.status(500).json({ message: "Internal server error" });
   }
 };
 
-
-
-// ==========================
-// Reset Village ID Counter
-// ==========================
+/* ================= RESET VILLAGE COUNTER ================= */
 export const resetVillageCounter = async (req, res) => {
   try {
-    await Counter.findByIdAndUpdate(
-      "villageId",
-      { seq: 0 },
-      { upsert: true }
-    );
+    await resetVillageCounterService();
 
     res.status(200).json({
       message: "Village ID counter reset. Next ID will start from VLG001."
     });
-
   } catch (error) {
-    console.error("Reset counter error:", error);
     res.status(500).json({ message: "Internal server error" });
   }
 };
 
 
-// ==========================
-// Get Villages by Taluka (Object  ID )
-// ==========================
-export const getVillageByTalukaObjectId = async (req, res) => {
+export const createMultipleVillages = async (req, res) => {
   try {
-    const { talukaObjectId } = req.params;
+    const villages = await createMultipleVillagesService(req.body);
 
-    // Validate ObjectId
-    if (!mongoose.Types.ObjectId.isValid(talukaObjectId)) {
-      return res.status(400).json({
-        message: "Invalid Taluka ObjectId"
-      });
-    }
-
-    const villages = await Village.find({
-      taluka: talukaObjectId
-    }).populate("taluka");
-
-    if (!villages.length) {
-      return res.status(404).json({
-        message: "No villages found for this taluka"
-      });
-    }
-
-    res.status(200).json({
-      message: "Villages fetched successfully",
+    res.status(201).json({
+      message: "Villages added successfully",
+      count: villages.length,
       data: villages
     });
-
   } catch (error) {
-    console.error("Error fetching villages by taluka ObjectId:", error);
-    res.status(500).json({
-      message: "Internal server error"
-    });
+    res.status(400).json({ message: error.message });
   }
 };

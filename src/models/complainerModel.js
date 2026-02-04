@@ -6,29 +6,39 @@ const complainerSchema = new mongoose.Schema(
       type: String,
       required: true,
       unique: true,
-      trim: true
+      trim: true,
+      immutable: true
     },
+
     name: {
       type: String,
       required: true,
       trim: true
     },
+
     phone: {
       type: String,
-      default: null
+      required: true,        // 🔒 mandatory
+      trim: true
     },
+
     taluka: {
-      type: String,
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Taluka",
       required: true
     },
+
     village: {
-      type: String,
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Village",
       required: true
     },
+
     addedBy: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "AppUser",
-      required: true
+      required: true,
+      immutable: true
     }
   },
   { timestamps: true }

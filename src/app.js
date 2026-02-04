@@ -10,8 +10,11 @@ import departmentRoute from "./routes/departmentRoute.js";
 import complainerRoute from "./routes/complainerRoute.js";
 import complaintRoute from "./routes/complaintRoute.js";
 import adminRoute from "./routes/adminRoute.js";
-import importVillageRoutes from "./routes/importvillage.route.js";
-import departmentImportRoutes from "./routes/importDepartment.route.js";
+import eventRoutes from "./routes/eventRoutes.js";
+import visitorRoutes from "./routes/visitorRoutes.js";
+
+
+
 
 const app = express();
 
@@ -20,10 +23,7 @@ console.log("🔥 app.js loaded");
 // ✅ MIDDLEWARES
 app.use(
   cors({
-    origin: [
-      "http://localhost:5173",
-      "https://your-frontend.vercel.app",
-    ],
+    origin: true,
     credentials: true,
   })
 );
@@ -67,10 +67,11 @@ console.log("✔ complaints route loaded");
 app.use("/api/admins", adminRoute);
 console.log("✔ admins route loaded");
 
-app.use("/api", importVillageRoutes);
-console.log("✔ importVillage route loaded");
+app.use("/api/events", eventRoutes);
+console.log("✔ events route loaded");
 
-app.use("/api/departments", departmentImportRoutes);
-console.log("✔ departmentImport route loaded");
+app.use("/api/visitors", visitorRoutes);
+console.log("✔ visitors route loaded");
+
 
 export default app;

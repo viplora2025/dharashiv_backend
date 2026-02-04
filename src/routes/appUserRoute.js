@@ -13,7 +13,7 @@ import {
   updateUserByAdmin,
   deleteUser
 } from "../controllers/appUserController.js";
-import { auth, userOnly, adminOnly} from "../middlewares/authMiddleware.js";
+import { auth, userOnly, staffOnly} from "../middlewares/authMiddleware.js";
 
 const router = express.Router();
 
@@ -36,19 +36,19 @@ router.put("/me", auth, userOnly, updateMyProfile);
 /* ================= ADMIN ================= */
 
 // Get all users
-router.get("/", auth, adminOnly, getAllUsers);
+router.get("/", auth, staffOnly, getAllUsers);
 
 // Get user by ID
-router.get("/id/:id", auth, adminOnly, getUserById);
+router.get("/id/:id", auth, staffOnly, getUserById);
 
 // Get user by phone
-router.get("/phone/:phone", auth, adminOnly, getUserByPhone);
+router.get("/phone/:phone", auth, staffOnly, getUserByPhone);
 
 // Update user
-router.put("/:id", auth, adminOnly, updateUserByAdmin);
+router.put("/:id", auth, staffOnly, updateUserByAdmin);
 
 // Delete user
-router.delete("/:id", auth, adminOnly, deleteUser);
+router.delete("/:id", auth, staffOnly, deleteUser);
 
 
 export default router;

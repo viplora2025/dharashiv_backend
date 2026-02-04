@@ -12,7 +12,7 @@ import {
   deleteAdmin
 } from "../controllers/adminController.js";
 
-import { auth, adminOnly,superAdminOnly } from "../middlewares/authMiddleware.js";
+import { auth, adminOnly,superAdminOnly, staffOnly } from "../middlewares/authMiddleware.js";
 
 const router = express.Router();
 
@@ -33,45 +33,21 @@ router.post("/resend-otp", resendOtp);
 /* ================= ADMIN MANAGEMENT ================= */
 
 // Register Admin (ONLY SUPERADMIN)
-router.post(
-  "/register",
-  registerAdmin
-);
+router.post("/register",auth, superAdminOnly,registerAdmin);
 
 // Get all admins (SuperAdmin + Admin)
-router.get(
-  "/",
-  auth,adminOnly,
-  getAllAdmins
-);
+router.get("/", auth, superAdminOnly,getAllAdmins);
 
 // Get admin by MongoDB ID
-router.get(
-  "/id/:id",
-  auth,
-  getAdminById
-);
+router.get("/id/:id",auth,getAdminById);
 
 // Get admin by phone
-router.get(
-  "/phone/:phone",
-  auth,adminOnly,
-  getAdminByPhone
-);
+router.get("/phone/:phone",auth,adminOnly,getAdminByPhone);
 
 // Update admin
-router.put(
-  "/:id",
-  auth,adminOnly,
-  updateAdmin
-);
+router.put("/:id",auth,adminOnly,updateAdmin);
 
 // Delete admin (ONLY SUPERADMIN recommended)
-router.delete(
-  "/:id",
-  auth,
-  superAdminOnly,
-  deleteAdmin
-);
+router.delete("/:id",auth,superAdminOnly,deleteAdmin);
 
 export default router;

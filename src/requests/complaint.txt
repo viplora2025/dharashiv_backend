@@ -1,0 +1,185 @@
+COMPLAINT MODULE – FRONTEND REQUEST GUIDE
+1️⃣ Create Complaint
+
+POST /complaints
+🔐 Auth required
+📎 Multipart (media optional)
+
+Headers
+Authorization: Bearer <token>
+Content-Type: multipart/form-data
+
+Request Body (form-data)
+Key	Type	Required
+complainer	string (ObjectId)	✅
+department	string (ObjectId)	✅
+subject	string	✅
+description	string	✅
+specification	string	❌
+media	file[] (max 5)	❌
+Variant A – Without Media
+{
+  "complainer": "65fa1a9d...",
+  "department": "65fa2b8c...",
+  "subject": "Road damaged",
+  "description": "Road near school is broken",
+  "specification": "Near main gate"
+}
+
+Variant B – With Media
+form-data:
+complainer = 65fa1a9d...
+department = 65fa2b8c...
+subject = Water leakage
+description = Pipe broken
+media = image1.jpg
+media = video1.mp4
+
+2️⃣ Get All Complaints (Admin)
+
+GET /
+🔐 Admin only
+
+Query Params (ALL optional)
+Param	Example
+page	1
+limit	10
+status	open / in-progress / resolved / closed
+department	<departmentId>
+filedBy	<userId>
+talukaId	<talukaId>
+Variant Examples
+GET /?page=1&limit=10
+GET /?status=open
+GET /?talukaId=65fa88...
+GET /?department=65aa11&status=resolved
+
+3️⃣ Get Complaint By ID
+
+GET /:id
+🔐 Auth required
+
+Path Param
+:id = complaint MongoDB _id
+
+No Body
+4️⃣ Get Complaints By Complainer
+
+GET /by-complainer/:complainerId
+🔐 Auth required
+
+Path Param
+complainerId = ObjectId
+
+Query Params
+page (optional)
+limit (optional)
+
+Example
+GET /by-complainer/65fa11?page=1&limit=10
+
+5️⃣ Update Complaint Status (Admin)
+
+PUT /:id/status
+🔐 Admin only
+📦 JSON
+
+Request Body
+{
+  "status": "in-progress"
+}
+
+Allowed Status Values
+open
+in-progress
+resolved
+closed
+
+
+❌ Any other value → error
+
+6️⃣ Public Track Complaint
+
+GET /track/:complaintId
+🔓 No auth
+
+Path Param
+complaintId = CMP-0123-0456-001
+
+No Body
+7️⃣ My Complaints (Logged-in User)
+
+GET /my
+🔐 Auth required
+
+Query Params (optional)
+Param	Example
+page	1
+limit	10
+status	open / resolved
+Example
+GET /my?page=1&limit=5
+GET /my?status=resolved
+
+8️⃣ Add Chat Message
+
+POST /:id/chat
+🔐 Auth required
+📎 Multipart
+
+Headers
+Authorization: Bearer <token>
+Content-Type: multipart/form-data
+
+Request Body (Variants)
+Variant A – Only Message
+{
+  "message": "Please resolve soon"
+}
+
+Variant B – Only Media
+form-data:
+media = image.jpg
+
+Variant C – Message + Media
+form-data:
+message = Here is proof
+media = image.jpg
+media = audio.mp3
+
+
+⚠️ At least message OR media required
+
+9️⃣ Get Complaint Chat
+
+GET /:id/chat
+🔐 Auth required
+
+Path Param
+:id = complaint MongoDB _id
+
+No Body
+🧠 IMPORTANT FRONTEND NOTES
+✅ Media Types Supported
+
+image (jpg, png)
+
+video (mp4)
+
+audio (mp3)
+
+pdf
+
+✅ Chat History Structure (Response)
+{
+  "message": "Status updated",
+  "media": [
+    { "type": "image", "url": "https://..." }
+  ],
+  "byRole": "admin",
+  "by": {
+    "_id": "65fa...",
+    "name": "Admin Name"
+  },
+  "timestamp": "2026-01-25T10:00:00Z"
+}
