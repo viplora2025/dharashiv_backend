@@ -43,7 +43,7 @@ export const getAllComplainers = async (req, res) => {
 
     // 🔒 Admin restriction
     if (req.role === "admin") {
-      accessibleTalukas = req.user.assignedTaluka;
+      accessibleTalukas = req.user.assignedTaluka || [];
     }
 
     const { data, totalRecords } = await getAllComplainersService(

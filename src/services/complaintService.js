@@ -83,6 +83,7 @@ export const createComplaintService = async (req) => {
         message: "Complaint registered",
         by: filedBy,
         byRole: "user",
+        byModel: "AppUser",
         timestamp: new Date()
       }
     ]
@@ -217,6 +218,21 @@ export const getComplaintByIdService = async (id, req) => {
 
   if (!complaint) throw new Error("Complaint not found");
 
+  if (req.role === "admin") {
+    const assigned = req.user.assignedTaluka || [];
+    if (assigned.length === 0) {
+      throw new Error("Not allowed to view this complaint");
+    }
+
+    const talukaId = complaint.complainer?.taluka?._id?.toString();
+    const allowed = assigned.some(
+      (t) => t.toString() === talukaId
+    );
+    if (!allowed) {
+      throw new Error("Not allowed to view this complaint");
+    }
+  }
+
   if (
     req.role === "user" &&
     complaint.filedBy._id.toString() !== req.user._id.toString()
@@ -238,6 +254,20 @@ export const getComplaintsByComplainerService = async (
 ) => {
   const complainer = await Complainer.findById(complainerId);
   if (!complainer) throw new Error("Complainer not found");
+
+  if (req.role === "admin") {
+    const assigned = req.user.assignedTaluka || [];
+    if (assigned.length === 0) {
+      throw new Error("Not allowed for this complainer");
+    }
+    const talukaId = complainer.taluka?.toString();
+    const allowed = assigned.some(
+      (t) => t.toString() === talukaId
+    );
+    if (!allowed) {
+      throw new Error("Not allowed for this complainer");
+    }
+  }
 
   if (
     req.role === "user" &&
@@ -271,11 +301,28 @@ export const updateComplaintStatusService = async (id, status, req) => {
     throw new Error("Invalid status value");
   }
 
-  const complaint = await Complaint.findById(id);
+  const complaint = await Complaint.findById(id).populate({
+    path: "complainer",
+    select: "taluka"
+  });
   if (!complaint) throw new Error("Complaint not found");
 
   if (!["admin", "superadmin"].includes(req.role)) {
     throw new Error("Only admin or superadmin can update status");
+  }
+
+  if (req.role === "admin") {
+    const assigned = req.user.assignedTaluka || [];
+    if (assigned.length === 0) {
+      throw new Error("Not allowed to update this complaint");
+    }
+    const talukaId = complaint.complainer?.taluka?.toString();
+    const allowed = assigned.some(
+      (t) => t.toString() === talukaId
+    );
+    if (!allowed) {
+      throw new Error("Not allowed to update this complaint");
+    }
   }
 
   if (complaint.status === status) {
@@ -287,6 +334,7 @@ export const updateComplaintStatusService = async (id, status, req) => {
     message: `Status updated to ${status}`,
     by: req.user._id,
     byRole: req.role,
+    byModel: "Admin",
     timestamp: new Date()
   });
 
@@ -345,12 +393,35 @@ export const getComplaintsByUserService = async (req, page, limit, status) => {
 export const addChatMessageService = async (id, req) => {
   const { message } = req.body;
 
+  if (req.role === "staff") {
+    throw new Error("Staff cannot add chat messages");
+  }
+
   if (!message?.trim() && !req.files?.length) {
     throw new Error("Message or media is required");
   }
 
-  const complaint = await Complaint.findById(id).select("history filedBy");
+  const complaint = await Complaint.findById(id)
+    .select("history filedBy complainer")
+    .populate({
+      path: "complainer",
+      select: "taluka"
+    });
   if (!complaint) throw new Error("Complaint not found");
+
+  if (req.role === "admin") {
+    const assigned = req.user.assignedTaluka || [];
+    if (assigned.length === 0) {
+      throw new Error("Not allowed to chat on this complaint");
+    }
+    const talukaId = complaint.complainer?.taluka?.toString();
+    const allowed = assigned.some(
+      (t) => t.toString() === talukaId
+    );
+    if (!allowed) {
+      throw new Error("Not allowed to chat on this complaint");
+    }
+  }
 
   if (
     req.role === "user" &&
@@ -390,6 +461,7 @@ export const addChatMessageService = async (id, req) => {
     media,
     by: req.user._id,
     byRole: req.role,
+    byModel: req.role === "user" ? "AppUser" : "Admin",
     timestamp: new Date()
   });
 
@@ -404,11 +476,33 @@ export const getComplaintChatService = async (id, req) => {
     throw new Error("Invalid complaint id");
   }
 
+  if (req.role === "staff") {
+    throw new Error("Staff cannot access complaint chat");
+  }
+
   const complaint = await Complaint.findById(id)
-    .select("history filedBy")
+    .select("history filedBy complainer")
+    .populate({
+      path: "complainer",
+      select: "taluka"
+    })
     .populate("history.by", "name appUserId");
 
   if (!complaint) throw new Error("Complaint not found");
+
+  if (req.role === "admin") {
+    const assigned = req.user.assignedTaluka || [];
+    if (assigned.length === 0) {
+      throw new Error("Not allowed to view this chat");
+    }
+    const talukaId = complaint.complainer?.taluka?.toString();
+    const allowed = assigned.some(
+      (t) => t.toString() === talukaId
+    );
+    if (!allowed) {
+      throw new Error("Not allowed to view this chat");
+    }
+  }
 
   if (
     req.role === "user" &&

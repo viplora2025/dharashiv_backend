@@ -85,13 +85,22 @@ const complaintSchema = new mongoose.Schema(
 
         by: {
           type: mongoose.Schema.Types.ObjectId,
-          required: true
+          required: true,
+          refPath: "history.byModel"
         },
 
         byRole: {
           type: String,
           enum: ["user", "admin", "superadmin"],
           required: true
+        },
+
+        byModel: {
+          type: String,
+          enum: ["AppUser", "Admin"],
+          default: function () {
+            return this.byRole === "user" ? "AppUser" : "Admin";
+          }
         },
 
         timestamp: {

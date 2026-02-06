@@ -1,7 +1,7 @@
 import Visitor from "../models/visitorModel.js";
 import Event from "../models/eventModel.js";
 import mongoose from "mongoose";
-import { VisitorStatus, RegistrationType } from "../config/constants.js";
+import { VisitorStatus, RegistrationType, EventStatus } from "../config/constants.js";
 
 /* =========================
    REGISTER VISITOR (ONLINE)
@@ -30,15 +30,17 @@ export const registerVisitorOnlineService = async (data) => {
       throw new Error("appUser is required for online registration");
     }
 
-    // 🔢 Atomic Token Generation
+    // 🔢 Atomic Token Generation (blocked for Cancelled/Completed)
     const event = await Event.findOneAndUpdate(
-      { _id: eventId },
+      { _id: eventId, status: { $nin: [EventStatus.CANCELLED, EventStatus.COMPLETED] } },
       { $inc: { lastTokenNo: 1 } },
       { new: true }
     );
 
     if (!event) {
-      throw new Error("Event not found");
+      const exists = await Event.findById(eventId).select("status");
+      if (!exists) throw new Error("Event not found");
+      throw new Error("Event is not open for registration");
     }
 
     const nextTokenNo = event.lastTokenNo;
@@ -88,15 +90,17 @@ export const registerVisitorOfflineService = async (data) => {
       throw new Error("registeredBy is required for offline registration");
     }
 
-    // 🔢 Atomic Token Generation
+    // 🔢 Atomic Token Generation (blocked for Cancelled/Completed)
     const event = await Event.findOneAndUpdate(
-      { _id: eventId },
+      { _id: eventId, status: { $nin: [EventStatus.CANCELLED, EventStatus.COMPLETED] } },
       { $inc: { lastTokenNo: 1 } },
       { new: true }
     );
 
     if (!event) {
-      throw new Error("Event not found");
+      const exists = await Event.findById(eventId).select("status");
+      if (!exists) throw new Error("Event not found");
+      throw new Error("Event is not open for registration");
     }
 
     const nextTokenNo = event.lastTokenNo;

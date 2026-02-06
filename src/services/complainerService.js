@@ -67,6 +67,11 @@ export const getAllComplainersService = async (
 ) => {
   const { talukaId, page = 1, limit = 10 } = query;
 
+  // Admin with no assigned taluka should see nothing
+  if (Array.isArray(accessibleTalukas) && accessibleTalukas.length === 0) {
+    return { data: [], totalRecords: 0 };
+  }
+
   const filter = {};
 
   /* 🌍 TALUKA FILTER LOGIC */
