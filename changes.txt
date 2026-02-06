@@ -1,0 +1,18 @@
+Backend Changes Summary (2026-02-06)
+
+API Endpoint Changes
+- Complaints: create complaint endpoint changed from POST /api/complaints/complaints to POST /api/complaints
+- Complainers: by-taluka endpoint changed from /api/complainers/complainers/by-taluka/:talukaId to /api/complainers/by-taluka/:talukaId
+- Events: /api/events/limited/events now reachable (route order fixed). Path unchanged.
+- Auth: refresh-token and logout no longer require access token. Use refresh token only.
+
+Behavior / Auth Changes
+- Complainers by user or by user+taluka: if role is user, access is restricted to own userId.
+- Admin get-by-id now requires admin role (not just any authenticated user).
+
+Other Backend Fixes (no frontend change needed)
+- Socket.IO auth middleware order fixed.
+- Complaint chat media type now sets pdf as "pdf" and staff role allowed in complaint history.
+- Department update now only updates provided fields (no accidental clears).
+- Event ID generation length normalized.
+- src/index.js import paths fixed for serverless entry.

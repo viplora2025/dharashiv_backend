@@ -24,6 +24,9 @@ const io = new Server(server, {
   }
 });
 
+io.use(socketAuthMiddleware);
+
+
 // 🔹 Temporary test (sirf check ke liye)
 io.on("connection", (socket) => {
   console.log("🟢 Socket connected:", socket.id);
@@ -32,7 +35,6 @@ io.on("connection", (socket) => {
     console.log("🔴 Socket disconnected:", socket.id);
   });
 });
-io.use(socketAuthMiddleware);
 const PORT = process.env.PORT || 4000;
 
 // 🔹 IMPORTANT: listen on server, not app

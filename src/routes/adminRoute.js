@@ -39,7 +39,7 @@ router.post("/register",auth, superAdminOnly,registerAdmin);
 router.get("/", auth, superAdminOnly,getAllAdmins);
 
 // Get admin by MongoDB ID
-router.get("/id/:id",auth,getAdminById);
+router.get("/id/:id",auth,adminOnly,getAdminById);
 
 // Get admin by phone
 router.get("/phone/:phone",auth,adminOnly,getAdminByPhone);

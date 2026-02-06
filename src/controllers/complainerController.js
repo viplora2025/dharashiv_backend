@@ -87,6 +87,14 @@ export const getComplainerById = async (req, res) => {
 // GET BY USER
 export const getComplainersByAppUser = async (req, res) => {
   try {
+    if (req.role === "user") {
+      const requestedId = req.params.userId;
+      const myId = req.user?._id?.toString();
+      if (!myId || requestedId != myId) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+    }
+
     const data = await getComplainersByAppUserService(req.params.userId);
     res.status(200).json(data);
   } catch (err) {
@@ -135,6 +143,13 @@ export const deleteComplainer = async (req, res) => {
 export const getComplainersByUserAndTaluka = async (req, res) => {
   try {
     const { userId, talukaId } = req.params;
+
+    if (req.role === "user") {
+      const myId = req.user?._id?.toString();
+      if (!myId || userId != myId) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+    }
 
     const data = await getComplainersByUserAndTalukaService(
       userId,

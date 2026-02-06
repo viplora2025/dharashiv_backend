@@ -122,6 +122,11 @@ export const getAllComplaintsService = async (query, accessibleTalukas = null) =
   if (department) filter.department = department;
   if (filedBy) filter.filedBy = filedBy;
 
+  // Admin with no assigned taluka should see nothing
+  if (Array.isArray(accessibleTalukas) && accessibleTalukas.length === 0) {
+    return { data: [], totalRecords: 0 };
+  }
+
   // 🌍 Taluka Filter Logic
   let targetTalukas = [];
 
@@ -358,13 +363,22 @@ export const addChatMessageService = async (id, req) => {
   if (req.files?.length) {
     media = await Promise.all(
       req.files.map(async (file) => {
+        let type = "image";
+        if (file.mimetype.startsWith("video/")) {
+          type = "video";
+        } else if (file.mimetype.startsWith("audio/")) {
+          type = "audio";
+        } else if (file.mimetype === "application/pdf") {
+          type = "pdf";
+        }
+
         const upload = await cloudinary.uploader.upload(
           `data:${file.mimetype};base64,${file.buffer.toString("base64")}`,
           { folder: "complaint-chat", resource_type: "auto" }
         );
 
         return {
-          type: file.mimetype.split("/")[0],
+          type,
           url: upload.secure_url
         };
       })
@@ -417,11 +431,55 @@ export const getComplaintChatService = async (id, req) => {
 /* ===================================================== */
 /* =============== GET RECENT COMPLAINTS ================= */
 /* ===================================================== */
-export const getRecentComplaintsService = async ({ page, limit }) => {
+export const getRecentComplaintsService = async ({ page, limit, accessibleTalukas = null }) => {
   const skip = (page - 1) * limit;
+
+  // Admin with no assigned taluka should see nothing
+  if (Array.isArray(accessibleTalukas) && accessibleTalukas.length === 0) {
+    return {
+      totalRecords: 0,
+      stats: {
+        total: 0,
+        open: 0,
+        "in-progress": 0,
+        resolved: 0,
+        closed: 0
+      },
+      data: []
+    };
+  }
+
+  const filter = {};
+
+  // Apply taluka restriction if provided (Admin)
+  if (accessibleTalukas && accessibleTalukas.length > 0) {
+    const complainers = await Complainer.find(
+      { taluka: { $in: accessibleTalukas } },
+      { _id: 1 }
+    );
+
+    const ids = complainers.map((c) => c._id);
+
+    if (!ids.length) {
+      return {
+        totalRecords: 0,
+        stats: {
+          total: 0,
+          open: 0,
+          "in-progress": 0,
+          resolved: 0,
+          closed: 0
+        },
+        data: []
+      };
+    }
+
+    filter.complainer = { $in: ids };
+  }
 
   /* ================= STATS ================= */
   const statsAggregation = await Complaint.aggregate([
+    { $match: filter },
     {
       $group: {
         _id: "$status",
@@ -444,7 +502,7 @@ export const getRecentComplaintsService = async ({ page, limit }) => {
   });
 
   /* ================= DATA ================= */
-  const data = await Complaint.find()
+  const data = await Complaint.find(filter)
     .sort({ createdAt: -1 }) // 🔥 recent first
     .skip(skip)
     .limit(limit)

@@ -32,7 +32,7 @@ export const getAllComplaints = async (req, res) => {
 
     // 🔒 If Admin, restrict to assigned talukas
     if (req.role === "admin") {
-      accessibleTalukas = req.user.assignedTaluka; // Array of ObjectIds
+      accessibleTalukas = req.user.assignedTaluka || []; // Array of ObjectIds
     }
 
     const { data, totalRecords } = await getAllComplaintsService(
@@ -164,9 +164,15 @@ export const getRecentComplaints = async (req, res) => {
   try {
     const { page = 1 } = req.query;
 
+    let accessibleTalukas = null;
+    if (req.role === "admin") {
+      accessibleTalukas = req.user.assignedTaluka || [];
+    }
+
     const result = await getRecentComplaintsService({
       page: Number(page),
-      limit: 20
+      limit: 20,
+      accessibleTalukas
     });
 
     res.json({

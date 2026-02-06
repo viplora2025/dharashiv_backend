@@ -21,7 +21,7 @@ const router = express.Router();
 /* ===================================================== */
 /* ================= CREATE COMPLAINT ================== */
 /* ===================================================== */
-router.post("/complaints",auth,upload.array("media", 5),createComplaint);
+router.post("/", auth, upload.array("media", 5), createComplaint);
 
 /* ===================================================== */
 /* ================= ADMIN / SUPERADMIN ================= */
@@ -40,14 +40,14 @@ router.get("/:id", auth, getComplaintById);
 /* ===================================================== */
 /* ================= CHAT ============================== */
 /* ===================================================== */
-router.post("/:id/chat",auth,upload.array("media", 5),addChatMessage);
+router.post("/:id/chat", auth, upload.array("media", 5), addChatMessage);
 
 router.get("/:id/chat", auth, getComplaintChat);
 
 /* ===================================================== */
 /* ================= PUBLIC TRACKING =================== */
 /* ===================================================== */
-/* ⚠️ MUST be AFTER other routes to avoid conflict */
+/* MUST be AFTER other routes to avoid conflict */
 router.get("/track/:complaintId", trackComplaint);
 
 export default router;
