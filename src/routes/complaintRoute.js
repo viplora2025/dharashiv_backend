@@ -15,13 +15,14 @@ import {
 
 import upload from "../middlewares/uploadMiddleware.js";
 import { auth, adminOnly } from "../middlewares/authMiddleware.js";
+import { complaintCreateLimiter } from "../middlewares/rateLimit.js";
 
 const router = express.Router();
 
 /* ===================================================== */
 /* ================= CREATE COMPLAINT ================== */
 /* ===================================================== */
-router.post("/", auth, upload.array("media", 5), createComplaint);
+router.post("/", complaintCreateLimiter, auth, upload.array("media", 5), createComplaint);
 
 /* ===================================================== */
 /* ================= ADMIN / SUPERADMIN ================= */

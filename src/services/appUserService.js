@@ -152,12 +152,19 @@ export const updateUserByAdminService = async (id, data) => {
     throw new Error("Phone number change is not allowed");
   }
 
+  const update = {};
+  if (data.name !== undefined) update.name = data.name;
+
   if (data.password) {
     validatePassword(data.password);
-    data.password = await bcrypt.hash(data.password, 10);
+    update.password = await bcrypt.hash(data.password, 10);
   }
 
-  const user = await AppUser.findByIdAndUpdate(id, data, { new: true });
+  if (Object.keys(update).length === 0) {
+    throw new Error("No fields provided for update");
+  }
+
+  const user = await AppUser.findByIdAndUpdate(id, update, { new: true });
   if (!user) throw new Error("User not found");
 
   return user;

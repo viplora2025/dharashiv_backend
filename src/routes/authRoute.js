@@ -4,10 +4,11 @@ import {
   refreshAccessToken,
   logout
 } from "../controllers/authController.js";
+import { authTokenLimiter } from "../middlewares/rateLimit.js";
 
 const router = express.Router();
 
-router.post("/refresh-token", refreshAccessToken);
-router.post("/logout", logout);
+router.post("/refresh-token", authTokenLimiter, refreshAccessToken);
+router.post("/logout", authTokenLimiter, logout);
 
 export default router;

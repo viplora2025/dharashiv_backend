@@ -8,6 +8,7 @@ import {
   getComplainersByUserAndTalukaService,
   getComplainersByTalukaService
 } from "../services/complainerService.js";
+import { parsePageLimit, validateObjectId } from "../utils/queryValidation.js";
 
 // CREATE
 export const createComplainer = async (req, res) => {
@@ -39,6 +40,11 @@ export const createComplainer = async (req, res) => {
 // GET ALL
 export const getAllComplainers = async (req, res) => {
   try {
+    const { page, limit } = parsePageLimit(req.query);
+    if (req.query.talukaId) {
+      validateObjectId(req.query.talukaId, "talukaId");
+    }
+
     let accessibleTalukas = null;
 
     // 🔒 Admin restriction
@@ -47,16 +53,14 @@ export const getAllComplainers = async (req, res) => {
     }
 
     const { data, totalRecords } = await getAllComplainersService(
-      req.query,
+      { ...req.query, page, limit },
       accessibleTalukas
     );
 
-    const { page = 1, limit = 10 } = req.query;
-
     res.json({
       success: true,
-      page: Number(page),
-      limit: Number(limit),
+      page,
+      limit,
       totalRecords,
       totalPages: Math.ceil(totalRecords / limit),
       data
@@ -177,8 +181,8 @@ export const getComplainersByTaluka = async (req, res) => {
   try {
     const { talukaId } = req.params;
 
-    const page = parseInt(req.query.page) || 1;
-    const limit = parseInt(req.query.limit) || 10;
+    validateObjectId(talukaId, "talukaId");
+    const { page, limit } = parsePageLimit(req.query);
 
     const data = await getComplainersByTalukaService(
       talukaId,

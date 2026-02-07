@@ -1,5 +1,7 @@
 import express from "express";
+import helmet from "helmet";
 import cors from "cors";
+import mongoSanitize from "express-mongo-sanitize";
 
 // routes
 import appUserRoute from "./routes/appUserRoute.js";
@@ -19,6 +21,16 @@ import visitorRoutes from "./routes/visitorRoutes.js";
 const app = express();
 
 console.log("🔥 app.js loaded");
+
+// ✅ BASIC SECURITY HEADERS (CSP disabled to avoid frontend breakage)
+app.use(helmet({ contentSecurityPolicy: false }));
+
+// ✅ Sanitize MongoDB operators from request input
+app.use(
+  mongoSanitize({
+    replaceWith: "_"
+  })
+);
 
 // ✅ MIDDLEWARES
 app.use(

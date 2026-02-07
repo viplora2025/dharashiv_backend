@@ -10,6 +10,11 @@ import {
   getComplaintChatService,
   getRecentComplaintsService
 } from "../services/complaintService.js";
+import {
+  parsePageLimit,
+  validateComplaintStatus,
+  validateObjectId
+} from "../utils/queryValidation.js";
 
 /* ================= CREATE COMPLAINT ================= */
 export const createComplaint = async (req, res) => {
@@ -28,6 +33,21 @@ export const createComplaint = async (req, res) => {
 /* ================= GET ALL COMPLAINTS ================= */
 export const getAllComplaints = async (req, res) => {
   try {
+    const { page, limit } = parsePageLimit(req.query);
+
+    if (req.query.status) {
+      validateComplaintStatus(req.query.status);
+    }
+    if (req.query.department) {
+      validateObjectId(req.query.department, "department");
+    }
+    if (req.query.filedBy) {
+      validateObjectId(req.query.filedBy, "filedBy");
+    }
+    if (req.query.talukaId) {
+      validateObjectId(req.query.talukaId, "talukaId");
+    }
+
     let accessibleTalukas = null;
 
     // 🔒 If Admin, restrict to assigned talukas
@@ -36,15 +56,14 @@ export const getAllComplaints = async (req, res) => {
     }
 
     const { data, totalRecords } = await getAllComplaintsService(
-      req.query,
+      { ...req.query, page, limit },
       accessibleTalukas
     );
-    const { page = 1, limit = 10 } = req.query;
 
     res.json({
       success: true,
-      page: Number(page),
-      limit: Number(limit),
+      page,
+      limit,
       totalRecords,
       totalPages: Math.ceil(totalRecords / limit),
       data
@@ -67,7 +86,9 @@ export const getComplaintById = async (req, res) => {
 /* ================= GET BY COMPLAINER ================= */
 export const getComplaintsByComplainer = async (req, res) => {
   try {
-    const { page = 1, limit = 10 } = req.query;
+    const { page, limit } = parsePageLimit(req.query);
+
+    validateObjectId(req.params.complainerId, "complainerId");
     const result = await getComplaintsByComplainerService(
       req.params.complainerId,
       req,
@@ -115,7 +136,10 @@ export const trackComplaint = async (req, res) => {
 /* ================= USER MY COMPLAINTS ================= */
 export const getMyComplaints = async (req, res) => {
   try {
-    const { page = 1, limit = 10, status } = req.query;
+    const { page, limit } = parsePageLimit(req.query);
+    const { status } = req.query;
+    if (status) validateComplaintStatus(status);
+
     const result = await getComplaintsByUserService(
       req,
       page,
@@ -162,7 +186,11 @@ export const getComplaintChat = async (req, res) => {
 /* ================= RECENT COMPLAINTS ================= */
 export const getRecentComplaints = async (req, res) => {
   try {
-    const { page = 1 } = req.query;
+    const pageRaw = req.query.page ?? "1";
+    const page = Number(pageRaw);
+    if (!Number.isInteger(page) || page < 1) {
+      throw new Error("Invalid page");
+    }
 
     let accessibleTalukas = null;
     if (req.role === "admin") {

@@ -71,6 +71,12 @@ export const getAllAdmins = async (req, res) => {
 
 export const updateAdmin = async (req, res) => {
   try {
+    // Only superadmin can change role or assignedTaluka
+    if (req.role !== "superadmin") {
+      delete req.body.role;
+      delete req.body.assignedTaluka;
+    }
+
     const admin = await adminService.updateAdminService(
       req.params.id,
       req.body

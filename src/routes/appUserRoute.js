@@ -14,15 +14,20 @@ import {
   deleteUser
 } from "../controllers/appUserController.js";
 import { auth, userOnly, staffOnly} from "../middlewares/authMiddleware.js";
+import {
+  userLoginLimiter,
+  userRegisterLimiter,
+  userForgotLimiter
+} from "../middlewares/rateLimit.js";
 
 const router = express.Router();
 
-router.post("/register", registerUser);
-router.post("/login", loginUser);
+router.post("/register", userRegisterLimiter, registerUser);
+router.post("/login", userLoginLimiter, loginUser);
 
 // forgot password
-router.post("/forgot/question", getSecretQuestion);
-router.post("/forgot/reset", resetPassword);
+router.post("/forgot/question", userForgotLimiter, getSecretQuestion);
+router.post("/forgot/reset", userForgotLimiter, resetPassword);
 
 
 /* ================= USER ================= */
