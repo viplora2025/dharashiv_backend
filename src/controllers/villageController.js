@@ -10,18 +10,20 @@ import {
   resetVillageCounterService,
   createMultipleVillagesService
 } from "../services/villageService.js";
+import { sendError, sendSuccess } from "../utils/response.js";
 
 /* ================= CREATE VILLAGE ================= */
 export const createVillage = async (req, res) => {
   try {
     const village = await createVillageService(req.body);
 
-    res.status(201).json({
+    sendSuccess(res, {
+      status: 201,
       message: "Village created successfully",
       data: village
     });
   } catch (error) {
-    res.status(400).json({ message: error.message });
+    sendError(res, { status: 400, message: error.message });
   }
 };
 
@@ -30,12 +32,13 @@ export const getAllVillages = async (req, res) => {
   try {
     const villages = await getAllVillagesService();
 
-    res.status(200).json({
+    sendSuccess(res, {
+      status: 200,
       message: "Village list fetched successfully",
       data: villages
     });
   } catch (error) {
-    res.status(500).json({ message: "Internal server error" });
+    sendError(res, { status: 500, message: "Internal server error" });
   }
 };
 
@@ -44,15 +47,16 @@ export const getVillageByTaluka = async (req, res) => {
   try {
     const villages = await getVillageByTalukaService(req.params.talukaId);
 
-    res.status(200).json({
+    sendSuccess(res, {
+      status: 200,
       message: "Villages fetched successfully",
       data: villages
     });
   } catch (error) {
     if (error.message.includes("Taluka not found")) {
-      return res.status(404).json({ message: error.message });
+      return sendError(res, { status: 404, message: error.message });
     }
-    res.status(500).json({ message: "Internal server error" });
+    sendError(res, { status: 500, message: "Internal server error" });
   }
 };
 
@@ -62,7 +66,8 @@ export const getVillageByTalukaObjectId = async (req, res) => {
     const villages =
       await getVillageByTalukaObjectIdService(req.params.talukaObjectId);
 
-    res.status(200).json({
+    sendSuccess(res, {
+      status: 200,
       message: "Villages fetched successfully",
       data: villages
     });
@@ -71,9 +76,9 @@ export const getVillageByTalukaObjectId = async (req, res) => {
       error.message === "Invalid Taluka ObjectId" ||
       error.message === "No villages found for this taluka"
     ) {
-      return res.status(400).json({ message: error.message });
+      return sendError(res, { status: 400, message: error.message });
     }
-    res.status(500).json({ message: "Internal server error" });
+    sendError(res, { status: 500, message: "Internal server error" });
   }
 };
 
@@ -85,15 +90,16 @@ export const updateVillage = async (req, res) => {
       req.body.name
     );
 
-    res.status(200).json({
+    sendSuccess(res, {
+      status: 200,
       message: "Village updated successfully",
       data: updated
     });
   } catch (error) {
     if (error.message === "Village not found") {
-      return res.status(404).json({ message: error.message });
+      return sendError(res, { status: 404, message: error.message });
     }
-    res.status(400).json({ message: error.message });
+    sendError(res, { status: 400, message: error.message });
   }
 };
 
@@ -102,14 +108,15 @@ export const deleteVillage = async (req, res) => {
   try {
     await deleteVillageService(req.params.villageId);
 
-    res.status(200).json({
+    sendSuccess(res, {
+      status: 200,
       message: "Village deleted successfully"
     });
   } catch (error) {
     if (error.message === "Village not found") {
-      return res.status(404).json({ message: error.message });
+      return sendError(res, { status: 404, message: error.message });
     }
-    res.status(500).json({ message: "Internal server error" });
+    sendError(res, { status: 500, message: "Internal server error" });
   }
 };
 
@@ -118,11 +125,12 @@ export const resetVillageCounter = async (req, res) => {
   try {
     await resetVillageCounterService();
 
-    res.status(200).json({
+    sendSuccess(res, {
+      status: 200,
       message: "Village ID counter reset. Next ID will start from VLG001."
     });
   } catch (error) {
-    res.status(500).json({ message: "Internal server error" });
+    sendError(res, { status: 500, message: "Internal server error" });
   }
 };
 
@@ -131,12 +139,13 @@ export const createMultipleVillages = async (req, res) => {
   try {
     const villages = await createMultipleVillagesService(req.body);
 
-    res.status(201).json({
+    sendSuccess(res, {
+      status: 201,
       message: "Villages added successfully",
       count: villages.length,
       data: villages
     });
   } catch (error) {
-    res.status(400).json({ message: error.message });
+    sendError(res, { status: 400, message: error.message });
   }
 };

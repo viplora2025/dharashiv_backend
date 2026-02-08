@@ -14,6 +14,7 @@ import complaintRoute from "./routes/complaintRoute.js";
 import adminRoute from "./routes/adminRoute.js";
 import eventRoutes from "./routes/eventRoutes.js";
 import visitorRoutes from "./routes/visitorRoutes.js";
+import dailyVisitorRoutes from "./routes/dailyVisitorRoutes.js";
 
 
 
@@ -84,6 +85,9 @@ console.log("✔ events route loaded");
 
 app.use("/api/visitors", visitorRoutes);
 console.log("✔ visitors route loaded");
+
+app.use("/api/daily-visitors", dailyVisitorRoutes);
+console.log("✔ daily visitors route loaded");
 
 
 export default app;

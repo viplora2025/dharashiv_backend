@@ -4,6 +4,7 @@ import {
   refreshAccessTokenService,
   logoutService
 } from "../services/authService.js";
+import { sendError, sendSuccess } from "../utils/response.js";
 
 /* ================= REFRESH ACCESS TOKEN ================= */
 export const refreshAccessToken = async (req, res) => {
@@ -13,9 +14,9 @@ export const refreshAccessToken = async (req, res) => {
     const newAccessToken =
       await refreshAccessTokenService(refreshToken);
 
-    res.json({ accessToken: newAccessToken });
+    sendSuccess(res, { accessToken: newAccessToken });
   } catch (err) {
-    res.status(403).json({ message: err.message });
+    sendError(res, { status: 403, message: err.message });
   }
 };
 
@@ -26,8 +27,8 @@ export const logout = async (req, res) => {
 
     await logoutService(refreshToken);
 
-    res.json({ message: "Logged out successfully" });
+    sendSuccess(res, { message: "Logged out successfully" });
   } catch (err) {
-    res.status(400).json({ message: err.message });
+    sendError(res, { status: 400, message: err.message });
   }
 };

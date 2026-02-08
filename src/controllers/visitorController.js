@@ -6,6 +6,7 @@ import {
   getVisitorByIdService,
   updateVisitorStatusService
 } from "../services/visitorService.js";
+import { sendError, sendSuccess } from "../utils/response.js";
 
 /* =========================
    REGISTER VISITOR
@@ -32,16 +33,13 @@ export const registerVisitor = async (req, res) => {
       throw new Error("Unauthorized role");
     }
 
-    res.status(201).json({
-      success: true,
+    sendSuccess(res, {
+      status: 201,
       message: "Visitor registered successfully",
       data: visitor
     });
   } catch (error) {
-    res.status(400).json({
-      success: false,
-      message: error.message
-    });
+    sendError(res, { status: 400, message: error.message });
   }
 };
 
@@ -52,16 +50,12 @@ export const getVisitorsByEvent = async (req, res) => {
   try {
     const visitors = await getVisitorsByEventService(req.params.eventId);
 
-    res.json({
-      success: true,
+    sendSuccess(res, {
       count: visitors.length,
       data: visitors
     });
   } catch (error) {
-    res.status(400).json({
-      success: false,
-      message: error.message
-    });
+    sendError(res, { status: 400, message: error.message });
   }
 };
 
@@ -72,16 +66,12 @@ export const getVisitorsByAppUser = async (req, res) => {
   try {
     const visitors = await getVisitorsByAppUserService(req.user._id);
 
-    res.json({
-      success: true,
+    sendSuccess(res, {
       count: visitors.length,
       data: visitors
     });
   } catch (error) {
-    res.status(400).json({
-      success: false,
-      message: error.message
-    });
+    sendError(res, { status: 400, message: error.message });
   }
 };
 
@@ -92,15 +82,9 @@ export const getVisitorById = async (req, res) => {
   try {
     const visitor = await getVisitorByIdService(req.params.id);
 
-    res.json({
-      success: true,
-      data: visitor
-    });
+    sendSuccess(res, { data: visitor });
   } catch (error) {
-    res.status(404).json({
-      success: false,
-      message: error.message
-    });
+    sendError(res, { status: 404, message: error.message });
   }
 };
 
@@ -120,15 +104,11 @@ export const updateVisitorStatus = async (req, res) => {
       status
     );
 
-    res.json({
-      success: true,
+    sendSuccess(res, {
       message: "Visitor status updated successfully",
       data: visitor
     });
   } catch (error) {
-    res.status(400).json({
-      success: false,
-      message: error.message
-    });
+    sendError(res, { status: 400, message: error.message });
   }
 };

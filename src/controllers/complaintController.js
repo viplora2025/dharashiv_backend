@@ -15,18 +15,19 @@ import {
   validateComplaintStatus,
   validateObjectId
 } from "../utils/queryValidation.js";
+import { sendError, sendSuccess } from "../utils/response.js";
 
 /* ================= CREATE COMPLAINT ================= */
 export const createComplaint = async (req, res) => {
   try {
     const complaint = await createComplaintService(req);
-    res.status(201).json({
-      success: true,
+    sendSuccess(res, {
+      status: 201,
       message: "Complaint created successfully",
       complaintId: complaint._id
     });
   } catch (err) {
-    res.status(400).json({ success: false, message: err.message });
+    sendError(res, { status: 400, message: err.message });
   }
 };
 
@@ -60,8 +61,7 @@ export const getAllComplaints = async (req, res) => {
       accessibleTalukas
     );
 
-    res.json({
-      success: true,
+    sendSuccess(res, {
       page,
       limit,
       totalRecords,
@@ -69,7 +69,7 @@ export const getAllComplaints = async (req, res) => {
       data
     });
   } catch (err) {
-    res.status(500).json({ success: false, message: err.message });
+    sendError(res, { status: 500, message: err.message });
   }
 };
 
@@ -77,9 +77,9 @@ export const getAllComplaints = async (req, res) => {
 export const getComplaintById = async (req, res) => {
   try {
     const data = await getComplaintByIdService(req.params.id, req);
-    res.json({ success: true, data });
+    sendSuccess(res, { data });
   } catch (err) {
-    res.status(400).json({ success: false, message: err.message });
+    sendError(res, { status: 400, message: err.message });
   }
 };
 
@@ -96,8 +96,7 @@ export const getComplaintsByComplainer = async (req, res) => {
       limit
     );
 
-    res.json({
-      success: true,
+    sendSuccess(res, {
       page: Number(page),
       limit: Number(limit),
       totalRecords: result.totalRecords,
@@ -105,7 +104,7 @@ export const getComplaintsByComplainer = async (req, res) => {
       data: result.data
     });
   } catch (err) {
-    res.status(400).json({ success: false, message: err.message });
+    sendError(res, { status: 400, message: err.message });
   }
 };
 
@@ -117,9 +116,9 @@ export const updateComplaintStatus = async (req, res) => {
       req.body.status,
       req
     );
-    res.json({ success: true, message: "Complaint status updated" });
+    sendSuccess(res, { message: "Complaint status updated" });
   } catch (err) {
-    res.status(400).json({ success: false, message: err.message });
+    sendError(res, { status: 400, message: err.message });
   }
 };
 
@@ -127,9 +126,9 @@ export const updateComplaintStatus = async (req, res) => {
 export const trackComplaint = async (req, res) => {
   try {
     const data = await trackComplaintService(req.params.complaintId);
-    res.json({ success: true, data });
+    sendSuccess(res, { data });
   } catch (err) {
-    res.status(404).json({ success: false, message: err.message });
+    sendError(res, { status: 404, message: err.message });
   }
 };
 
@@ -147,8 +146,7 @@ export const getMyComplaints = async (req, res) => {
       status
     );
 
-    res.json({
-      success: true,
+    sendSuccess(res, {
       page: Number(page),
       limit: Number(limit),
       totalRecords: result.totalRecords,
@@ -156,7 +154,7 @@ export const getMyComplaints = async (req, res) => {
       data: result.data
     });
   } catch (err) {
-    res.status(500).json({ success: false, message: err.message });
+    sendError(res, { status: 500, message: err.message });
   }
 };
 
@@ -164,9 +162,9 @@ export const getMyComplaints = async (req, res) => {
 export const addChatMessage = async (req, res) => {
   try {
     await addChatMessageService(req.params.id, req);
-    res.json({ success: true, message: "Message sent successfully" });
+    sendSuccess(res, { message: "Message sent successfully" });
   } catch (err) {
-    res.status(400).json({ success: false, message: err.message });
+    sendError(res, { status: 400, message: err.message });
   }
 };
 
@@ -174,9 +172,9 @@ export const addChatMessage = async (req, res) => {
 export const getComplaintChat = async (req, res) => {
   try {
     const data = await getComplaintChatService(req.params.id, req);
-    res.json({ success: true, data });
+    sendSuccess(res, { data });
   } catch (err) {
-    res.status(400).json({ success: false, message: err.message });
+    sendError(res, { status: 400, message: err.message });
   }
 };
 
@@ -203,8 +201,7 @@ export const getRecentComplaints = async (req, res) => {
       accessibleTalukas
     });
 
-    res.json({
-      success: true,
+    sendSuccess(res, {
       page: Number(page),
       limit: 20,
       totalRecords: result.totalRecords,
@@ -213,9 +210,6 @@ export const getRecentComplaints = async (req, res) => {
       data: result.data
     });
   } catch (err) {
-    res.status(500).json({
-      success: false,
-      message: err.message
-    });
+    sendError(res, { status: 500, message: err.message });
   }
 };

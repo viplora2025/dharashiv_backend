@@ -8,6 +8,7 @@ import {
   deleteEventService,
   getLimitedEventsService
 } from "../services/eventService.js";
+import { sendError, sendSuccess } from "../utils/response.js";
 
 export const createEvent = async (req, res) => {
   try {
@@ -16,16 +17,13 @@ export const createEvent = async (req, res) => {
       createdBy: req.user._id   // 🔥 from JWT
     });
 
-    res.status(201).json({
-      success: true,
+    sendSuccess(res, {
+      status: 201,
       message: "Event created successfully",
       data: event
     });
   } catch (error) {
-    res.status(400).json({
-      success: false,
-      message: error.message
-    });
+    sendError(res, { status: 400, message: error.message });
   }
 };
 
@@ -41,16 +39,12 @@ export const updateEvent = async (req, res) => {
       req.body
     );
 
-    res.json({
-      success: true,
+    sendSuccess(res, {
       message: "Event updated successfully",
       data: event
     });
   } catch (error) {
-    res.status(400).json({
-      success: false,
-      message: error.message
-    });
+    sendError(res, { status: 400, message: error.message });
   }
 };
 
@@ -64,16 +58,12 @@ export const updateEventStatus = async (req, res) => {
       req.body.status
     );
 
-    res.json({
-      success: true,
+    sendSuccess(res, {
       message: "Event status updated",
       data: event
     });
   } catch (error) {
-    res.status(400).json({
-      success: false,
-      message: error.message
-    });
+    sendError(res, { status: 400, message: error.message });
   }
 };
 
@@ -84,15 +74,9 @@ export const getAllEvents = async (req, res) => {
   try {
     const events = await getAllEventsService();
 
-    res.json({
-      success: true,
-      data: events
-    });
+    sendSuccess(res, { data: events });
   } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: error.message
-    });
+    sendError(res, { status: 500, message: error.message });
   }
 };
 
@@ -103,15 +87,9 @@ export const getEventById = async (req, res) => {
   try {
     const event = await getEventByIdService(req.params.id);
 
-    res.json({
-      success: true,
-      data: event
-    });
+    sendSuccess(res, { data: event });
   } catch (error) {
-    res.status(404).json({
-      success: false,
-      message: error.message
-    });
+    sendError(res, { status: 404, message: error.message });
   }
 };
 
@@ -122,15 +100,9 @@ export const deleteEvent = async (req, res) => {
   try {
     await deleteEventService(req.params.id);
 
-    res.json({
-      success: true,
-      message: "Event deleted successfully"
-    });
+    sendSuccess(res, { message: "Event deleted successfully" });
   } catch (error) {
-    res.status(400).json({
-      success: false,
-      message: error.message
-    });
+    sendError(res, { status: 400, message: error.message });
   }
 };
 
@@ -140,15 +112,12 @@ export const getLimitedEvents = async (req, res) => {
   try {
     const events = await getLimitedEventsService();
 
-    res.status(200).json({
-      success: true,
+    sendSuccess(res, {
+      status: 200,
       count: events.length,
       data: events
     });
   } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: error.message
-    });
+    sendError(res, { status: 500, message: error.message });
   }
 };
