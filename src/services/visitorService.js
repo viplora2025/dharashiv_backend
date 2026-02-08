@@ -134,6 +134,8 @@ export const getVisitorsByEventService = async (eventId) => {
     }
 
     return await Visitor.find({ eventId })
+      .populate("village", "name")
+      .populate("taluka", "name")
       .sort({ tokenNo: 1 }); // sequence wise
   } catch (error) {
     throw error;
@@ -150,6 +152,8 @@ export const getVisitorsByAppUserService = async (appUserId) => {
     }
 
     return await Visitor.find({ appUser: appUserId })
+      .populate("village", "name")
+      .populate("taluka", "name")
       .sort({ registeredAt: -1 });
   } catch (error) {
     throw error;
@@ -165,7 +169,9 @@ export const getVisitorByIdService = async (id) => {
       throw new Error("Invalid visitor id");
     }
 
-    const visitor = await Visitor.findById(id);
+    const visitor = await Visitor.findById(id)
+      .populate("village", "name")
+      .populate("taluka", "name");
 
     if (!visitor) {
       throw new Error("Visitor not found");
