@@ -1,0 +1,125 @@
+import mongoose from "mongoose";
+import Announcement from "../models/announcementModel.js";
+import cloudinary from "../config/cloudinary.js";
+import { generateAnnouncementId } from "../utils/announcementIds.js";
+
+const uploadImageIfPresent = async (file) => {
+  if (!file) return null;
+
+  if (!file.mimetype.startsWith("image/")) {
+    throw new Error("Only image files are allowed");
+  }
+
+  const upload = await cloudinary.uploader.upload(
+    `data:${file.mimetype};base64,${file.buffer.toString("base64")}`,
+    { folder: "announcements" }
+  );
+
+  return upload.secure_url;
+};
+
+export const createAnnouncementService = async (req) => {
+  const {
+    title,
+    message,
+    eventDate,
+    eventTime,
+    location,
+    type,
+    status
+  } = req.body;
+
+  if (!req.user?._id) {
+    throw new Error("Unauthorized");
+  }
+
+  if (!title || !message || !eventDate || !eventTime || !location || !type) {
+    throw new Error("Required fields missing");
+  }
+
+  const parsedDate = new Date(eventDate);
+  if (Number.isNaN(parsedDate.getTime())) {
+    throw new Error("Invalid eventDate");
+  }
+
+  const imageUrl = await uploadImageIfPresent(req.file);
+  const announcementId = await generateAnnouncementId();
+
+  const doc = await Announcement.create({
+    announcementId,
+    title,
+    message,
+    eventDate: parsedDate,
+    eventTime,
+    location,
+    type,
+    status: status || "Published",
+    imageUrl,
+    createdBy: req.user._id
+  });
+
+  return doc;
+};
+
+export const updateAnnouncementService = async (id, req) => {
+  if (!mongoose.Types.ObjectId.isValid(id)) {
+    throw new Error("Invalid announcement id");
+  }
+
+  const updates = { ...req.body };
+  delete updates.announcementId;
+  delete updates.createdBy;
+
+  if (updates.eventDate) {
+    const parsedDate = new Date(updates.eventDate);
+    if (Number.isNaN(parsedDate.getTime())) {
+      throw new Error("Invalid eventDate");
+    }
+    updates.eventDate = parsedDate;
+  }
+
+  const imageUrl = await uploadImageIfPresent(req.file);
+  if (imageUrl) {
+    updates.imageUrl = imageUrl;
+  }
+
+  const doc = await Announcement.findByIdAndUpdate(id, updates, {
+    new: true
+  });
+
+  if (!doc) {
+    throw new Error("Announcement not found");
+  }
+
+  return doc;
+};
+
+export const deleteAnnouncementService = async (id) => {
+  if (!mongoose.Types.ObjectId.isValid(id)) {
+    throw new Error("Invalid announcement id");
+  }
+
+  const doc = await Announcement.findByIdAndDelete(id);
+  if (!doc) {
+    throw new Error("Announcement not found");
+  }
+
+  return true;
+};
+
+export const getAnnouncementByIdService = async (id) => {
+  if (!mongoose.Types.ObjectId.isValid(id)) {
+    throw new Error("Invalid announcement id");
+  }
+
+  const doc = await Announcement.findById(id);
+  if (!doc) {
+    throw new Error("Announcement not found");
+  }
+
+  return doc;
+};
+
+export const getAllAnnouncementsService = async () => {
+  return await Announcement.find().sort({ eventDate: -1, createdAt: -1 });
+};

@@ -15,6 +15,7 @@ import adminRoute from "./routes/adminRoute.js";
 import eventRoutes from "./routes/eventRoutes.js";
 import visitorRoutes from "./routes/visitorRoutes.js";
 import dailyVisitorRoutes from "./routes/dailyVisitorRoutes.js";
+import announcementRoutes from "./routes/announcementRoutes.js";
 
 
 
@@ -88,6 +89,9 @@ console.log("✔ visitors route loaded");
 
 app.use("/api/daily-visitors", dailyVisitorRoutes);
 console.log("✔ daily visitors route loaded");
+
+app.use("/api/announcements", announcementRoutes);
+console.log("✔ announcements route loaded");
 
 
 export default app;
