@@ -35,6 +35,8 @@ router.patch("/:id/status", auth, staffOnly, updateEventStatus);
 ========================= */
 router.get("/", getAllEvents);
 
+router.get("/limited/events", auth, getLimitedEvents);
+
 /* =========================
    GET EVENT BY ID
 ========================= */
@@ -44,7 +46,5 @@ router.get("/:id", getEventById);
    DELETE EVENT
 ========================= */
 router.delete("/:id", auth, superAdminOnly, deleteEvent);
-
-router.get("/limited/events", auth, getLimitedEvents);
 
 export default router;

@@ -61,13 +61,26 @@ export const getDepartmentByIdService = async (deptId) => {
 // Update Department
 // ==========================
 export const updateDepartmentService = async (deptId, { name, description }) => {
-  if (name && (!name.en || !name.mr)) {
-    throw new Error("Both English and Marathi names are required.");
+  const update = {};
+
+  if (name !== undefined) {
+    if (!name.en || !name.mr) {
+      throw new Error("Both English and Marathi names are required.");
+    }
+    update.name = name;
+  }
+
+  if (description !== undefined) {
+    update.description = description;
+  }
+
+  if (Object.keys(update).length === 0) {
+    throw new Error("No fields provided for update.");
   }
 
   const updated = await Department.findOneAndUpdate(
     { deptId },
-    { name, description },
+    update,
     { new: true }
   );
 

@@ -8,6 +8,8 @@ import {
   getComplainersByUserAndTalukaService,
   getComplainersByTalukaService
 } from "../services/complainerService.js";
+import { parsePageLimit, validateObjectId } from "../utils/queryValidation.js";
+import { sendError, sendSuccess } from "../utils/response.js";
 
 // CREATE
 export const createComplainer = async (req, res) => {
@@ -23,49 +25,45 @@ export const createComplainer = async (req, res) => {
       addedBy
     });
 
-    res.status(201).json({
-      success: true,
+    sendSuccess(res, {
+      status: 201,
       message: "Complainer created successfully",
       data: complainer
     });
   } catch (err) {
-    res.status(400).json({
-      success: false,
-      message: err.message
-    });
+    sendError(res, { status: 400, message: err.message });
   }
 };
 
 // GET ALL
 export const getAllComplainers = async (req, res) => {
   try {
+    const { page, limit } = parsePageLimit(req.query);
+    if (req.query.talukaId) {
+      validateObjectId(req.query.talukaId, "talukaId");
+    }
+
     let accessibleTalukas = null;
 
     // 🔒 Admin restriction
     if (req.role === "admin") {
-      accessibleTalukas = req.user.assignedTaluka;
+      accessibleTalukas = req.user.assignedTaluka || [];
     }
 
     const { data, totalRecords } = await getAllComplainersService(
-      req.query,
+      { ...req.query, page, limit },
       accessibleTalukas
     );
 
-    const { page = 1, limit = 10 } = req.query;
-
-    res.json({
-      success: true,
-      page: Number(page),
-      limit: Number(limit),
+    sendSuccess(res, {
+      page,
+      limit,
       totalRecords,
       totalPages: Math.ceil(totalRecords / limit),
       data
     });
   } catch (err) {
-    res.status(500).json({
-      success: false,
-      message: err.message
-    });
+    sendError(res, { status: 500, message: err.message });
   }
 };
 
@@ -74,12 +72,9 @@ export const getAllComplainers = async (req, res) => {
 export const getComplainerById = async (req, res) => {
   try {
     const data = await getComplainerByIdService(req.params.id, req);
-    res.json({ success: true, data });
+    sendSuccess(res, { data });
   } catch (err) {
-    res.status(400).json({
-      success: false,
-      message: err.message
-    });
+    sendError(res, { status: 400, message: err.message });
   }
 };
 
@@ -87,10 +82,18 @@ export const getComplainerById = async (req, res) => {
 // GET BY USER
 export const getComplainersByAppUser = async (req, res) => {
   try {
+    if (req.role === "user") {
+      const requestedId = req.params.userId;
+      const myId = req.user?._id?.toString();
+      if (!myId || requestedId != myId) {
+        return sendError(res, { status: 403, message: "Access denied" });
+      }
+    }
+
     const data = await getComplainersByAppUserService(req.params.userId);
-    res.status(200).json(data);
+    sendSuccess(res, { status: 200, ...data });
   } catch (err) {
-    res.status(400).json({ message: err.message });
+    sendError(res, { status: 400, message: err.message });
   }
 };
 
@@ -102,16 +105,13 @@ export const updateComplainer = async (req, res) => {
       req.body
     );
 
-    res.status(200).json({
-      success: true,
+    sendSuccess(res, {
+      status: 200,
       message: "Complainer updated successfully",
       data
     });
   } catch (err) {
-    res.status(400).json({
-      success: false,
-      message: err.message
-    });
+    sendError(res, { status: 400, message: err.message });
   }
 };
 
@@ -119,11 +119,12 @@ export const updateComplainer = async (req, res) => {
 export const deleteComplainer = async (req, res) => {
   try {
     await deleteComplainerService(req.params.id);
-    res.status(200).json({
+    sendSuccess(res, {
+      status: 200,
       message: "Complainer deleted successfully"
     });
   } catch (err) {
-    res.status(404).json({ message: err.message });
+    sendError(res, { status: 404, message: err.message });
   }
 };
 
@@ -136,20 +137,21 @@ export const getComplainersByUserAndTaluka = async (req, res) => {
   try {
     const { userId, talukaId } = req.params;
 
+    if (req.role === "user") {
+      const myId = req.user?._id?.toString();
+      if (!myId || userId != myId) {
+        return sendError(res, { status: 403, message: "Access denied" });
+      }
+    }
+
     const data = await getComplainersByUserAndTalukaService(
       userId,
       talukaId
     );
 
-    res.status(200).json({
-      success: true,
-      ...data
-    });
+    sendSuccess(res, { status: 200, ...data });
   } catch (err) {
-    res.status(400).json({
-      success: false,
-      message: err.message
-    });
+    sendError(res, { status: 400, message: err.message });
   }
 };
 
@@ -162,8 +164,8 @@ export const getComplainersByTaluka = async (req, res) => {
   try {
     const { talukaId } = req.params;
 
-    const page = parseInt(req.query.page) || 1;
-    const limit = parseInt(req.query.limit) || 10;
+    validateObjectId(talukaId, "talukaId");
+    const { page, limit } = parsePageLimit(req.query);
 
     const data = await getComplainersByTalukaService(
       talukaId,
@@ -171,14 +173,8 @@ export const getComplainersByTaluka = async (req, res) => {
       limit
     );
 
-    res.status(200).json({
-      success: true,
-      ...data
-    });
+    sendSuccess(res, { status: 200, ...data });
   } catch (err) {
-    res.status(400).json({
-      success: false,
-      message: err.message
-    });
+    sendError(res, { status: 400, message: err.message });
   }
 };

@@ -163,7 +163,7 @@ export const generateEventId = async () => {
     { new: true, upsert: true }
   );
 
-  eventId = "EVT" + counter.seq.toString().padStart(4, "0");
+  eventId = "EVT" + counter.seq.toString().padStart(6, "0");
 
   return eventId;
 };

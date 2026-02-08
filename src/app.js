@@ -1,5 +1,7 @@
 import express from "express";
+import helmet from "helmet";
 import cors from "cors";
+import mongoSanitize from "express-mongo-sanitize";
 
 // routes
 import appUserRoute from "./routes/appUserRoute.js";
@@ -12,6 +14,8 @@ import complaintRoute from "./routes/complaintRoute.js";
 import adminRoute from "./routes/adminRoute.js";
 import eventRoutes from "./routes/eventRoutes.js";
 import visitorRoutes from "./routes/visitorRoutes.js";
+import dailyVisitorRoutes from "./routes/dailyVisitorRoutes.js";
+import announcementRoutes from "./routes/announcementRoutes.js";
 
 
 
@@ -19,6 +23,16 @@ import visitorRoutes from "./routes/visitorRoutes.js";
 const app = express();
 
 console.log("🔥 app.js loaded");
+
+// ✅ BASIC SECURITY HEADERS (CSP disabled to avoid frontend breakage)
+app.use(helmet({ contentSecurityPolicy: false }));
+
+// ✅ Sanitize MongoDB operators from request input
+app.use(
+  mongoSanitize({
+    replaceWith: "_"
+  })
+);
 
 // ✅ MIDDLEWARES
 app.use(
@@ -72,6 +86,12 @@ console.log("✔ events route loaded");
 
 app.use("/api/visitors", visitorRoutes);
 console.log("✔ visitors route loaded");
+
+app.use("/api/daily-visitors", dailyVisitorRoutes);
+console.log("✔ daily visitors route loaded");
+
+app.use("/api/announcements", announcementRoutes);
+console.log("✔ announcements route loaded");
 
 
 export default app;

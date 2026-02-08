@@ -13,22 +13,27 @@ import {
 } from "../controllers/adminController.js";
 
 import { auth, adminOnly,superAdminOnly, staffOnly } from "../middlewares/authMiddleware.js";
+import {
+  adminLoginLimiter,
+  adminOtpLimiter,
+  adminResetLimiter
+} from "../middlewares/rateLimit.js";
 
 const router = express.Router();
 
 /* ================= AUTH ================= */
 
 // Login (Admin + SuperAdmin)
-router.post("/login", loginAdmin);
+router.post("/login", adminLoginLimiter, loginAdmin);
 
 // Forgot password
-router.post("/forgot-password", forgotPassword);
+router.post("/forgot-password", adminOtpLimiter, forgotPassword);
 
 // Reset password
-router.post("/reset-password", resetPassword);
+router.post("/reset-password", adminResetLimiter, resetPassword);
 
 // Resend OTP
-router.post("/resend-otp", resendOtp);
+router.post("/resend-otp", adminOtpLimiter, resendOtp);
 
 /* ================= ADMIN MANAGEMENT ================= */
 
@@ -39,7 +44,7 @@ router.post("/register",auth, superAdminOnly,registerAdmin);
 router.get("/", auth, superAdminOnly,getAllAdmins);
 
 // Get admin by MongoDB ID
-router.get("/id/:id",auth,getAdminById);
+router.get("/id/:id",auth,adminOnly,getAdminById);
 
 // Get admin by phone
 router.get("/phone/:phone",auth,adminOnly,getAdminByPhone);

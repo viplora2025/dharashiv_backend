@@ -147,16 +147,32 @@ export const getAllAdminsService = async () => {
 };
 
 export const updateAdminService = async (id, data) => {
+  const update = {};
+
+  if (data.name !== undefined) update.name = data.name;
+
+  if (data.email !== undefined) {
+    validateEmail(data.email);
+    update.email = data.email;
+  }
+
   if (data.password) {
     validatePassword(data.password);
-    data.password = await bcrypt.hash(data.password, 10);
+    update.password = await bcrypt.hash(data.password, 10);
   }
 
   if (data.phone) {
     throw new Error("Phone number change is not allowed");
   }
 
-  const admin = await Admin.findByIdAndUpdate(id, data, { new: true });
+  if (data.role !== undefined) update.role = data.role;
+  if (data.assignedTaluka !== undefined) update.assignedTaluka = data.assignedTaluka;
+
+  if (Object.keys(update).length === 0) {
+    throw new Error("No fields provided for update");
+  }
+
+  const admin = await Admin.findByIdAndUpdate(id, update, { new: true });
   if (!admin) throw new Error("Admin not found");
 
   return admin;
