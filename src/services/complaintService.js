@@ -7,9 +7,14 @@ import mongoose from "mongoose";
 import generateComplaintId from "../utils/generateComplaintId.js";
 import Admin from "../models/adminModel.js";
 import { io } from "../server.js";
+import { uploadToCloudinary } from "../utils/cloudinaryUpload.js";
+import { getMediaTypeAndResource } from "../utils/mediaType.js";
+import { validateFileSignature } from "../utils/fileSignature.js";
 /* ===================================================== */
 /* ================= CREATE COMPLAINT ================== */
 /* ===================================================== */
+
+
 export const createComplaintService = async (req) => {
   const { complainer, department, subject, description, specification } =
     req.body;
@@ -22,9 +27,7 @@ export const createComplaintService = async (req) => {
 
   // 🔍 Validate complainer
   const complainerDoc = await Complainer.findById(complainer);
-  if (!complainerDoc) {
-    throw new Error("Complainer not found");
-  }
+  if (!complainerDoc) throw new Error("Complainer not found");
 
   if (complainerDoc.addedBy.toString() !== filedBy.toString()) {
     throw new Error("You cannot use this complainer");
@@ -35,31 +38,20 @@ export const createComplaintService = async (req) => {
   if (req.files?.length) {
     media = await Promise.all(
       req.files.map(async (file) => {
-        let type = "image";
-        let resourceType = "image";
+        // 🔐 signature validation
+        const ok = validateFileSignature(file);
+        if (!ok) throw new Error("File signature mismatch / corrupted file");
 
-        if (file.mimetype.startsWith("video/")) {
-          type = "video";
-          resourceType = "auto";
-        } else if (file.mimetype.startsWith("audio/")) {
-          type = "audio";
-          resourceType = "auto";
-        } else if (file.mimetype === "application/pdf") {
-          type = "pdf";
-          resourceType = "raw";
-        }
+        const { type, resource_type } = getMediaTypeAndResource(file.mimetype);
 
-        const upload = await cloudinary.uploader.upload(
-          `data:${file.mimetype};base64,${file.buffer.toString("base64")}`,
-          {
-            folder: "complaints",
-            resource_type: resourceType
-          }
-        );
+        const upload = await uploadToCloudinary(file.buffer, {
+          folder: "complaints",
+          resource_type,
+        });
 
         return {
           type,
-          url: upload.secure_url
+          url: upload.secure_url,
         };
       })
     );
@@ -84,28 +76,25 @@ export const createComplaintService = async (req) => {
         by: filedBy,
         byRole: "user",
         byModel: "AppUser",
-        timestamp: new Date()
-      }
-    ]
+        timestamp: new Date(),
+      },
+    ],
   });
 
   /* 🔔 SOCKET NOTIFICATION → TALUKA ADMINS */
   try {
     const talukaId = complainerDoc.taluka;
 
-    const admins = await Admin.find({
-      assignedTaluka: talukaId
-    });
+    const admins = await Admin.find({ assignedTaluka: talukaId });
 
     admins.forEach((admin) => {
       io.to(`admin:${admin.adminId}`).emit("complaint:new", {
         complaintId: complaint._id,
         subject: complaint.subject,
-        talukaId
+        talukaId,
       });
     });
   } catch (err) {
-    // ❗ socket fail hua toh complaint create fail nahi honi chahiye
     console.error("Socket emit failed (complaint:new):", err.message);
   }
 
@@ -405,52 +394,47 @@ export const addChatMessageService = async (id, req) => {
     .select("history filedBy complainer")
     .populate({
       path: "complainer",
-      select: "taluka"
+      select: "taluka",
     });
+
   if (!complaint) throw new Error("Complaint not found");
 
+  // 🔐 Permission checks
   if (req.role === "admin") {
     const assigned = req.user.assignedTaluka || [];
-    if (assigned.length === 0) {
-      throw new Error("Not allowed to chat on this complaint");
-    }
+    if (assigned.length === 0) throw new Error("Not allowed");
+
     const talukaId = complaint.complainer?.taluka?.toString();
-    const allowed = assigned.some(
-      (t) => t.toString() === talukaId
-    );
-    if (!allowed) {
-      throw new Error("Not allowed to chat on this complaint");
-    }
+    const allowed = assigned.some((t) => t.toString() === talukaId);
+    if (!allowed) throw new Error("Not allowed");
   }
 
   if (
     req.role === "user" &&
     complaint.filedBy.toString() !== req.user._id.toString()
   ) {
-    throw new Error("Not allowed to chat on this complaint");
+    throw new Error("Not allowed");
   }
 
+  /* 📤 Upload chat media */
   let media = [];
   if (req.files?.length) {
     media = await Promise.all(
       req.files.map(async (file) => {
-        let type = "image";
-        if (file.mimetype.startsWith("video/")) {
-          type = "video";
-        } else if (file.mimetype.startsWith("audio/")) {
-          type = "audio";
-        } else if (file.mimetype === "application/pdf") {
-          type = "pdf";
-        }
+        // 🔐 signature validation
+        const ok = validateFileSignature(file);
+        if (!ok) throw new Error("File signature mismatch / corrupted file");
 
-        const upload = await cloudinary.uploader.upload(
-          `data:${file.mimetype};base64,${file.buffer.toString("base64")}`,
-          { folder: "complaint-chat", resource_type: "auto" }
-        );
+        const { type, resource_type } = getMediaTypeAndResource(file.mimetype);
+
+        const upload = await uploadToCloudinary(file.buffer, {
+          folder: "complaint-chat",
+          resource_type,
+        });
 
         return {
           type,
-          url: upload.secure_url
+          url: upload.secure_url,
         };
       })
     );
@@ -462,10 +446,12 @@ export const addChatMessageService = async (id, req) => {
     by: req.user._id,
     byRole: req.role,
     byModel: req.role === "user" ? "AppUser" : "Admin",
-    timestamp: new Date()
+    timestamp: new Date(),
   });
 
   await complaint.save();
+
+  return complaint;
 };
 
 /* ===================================================== */
