@@ -2,6 +2,7 @@ import mongoose from "mongoose";
 import Announcement from "../models/announcementModel.js";
 import cloudinary from "../config/cloudinary.js";
 import { generateAnnouncementId } from "../utils/announcementIds.js";
+import { io } from "../server.js";
 
 const uploadImageIfPresent = async (file) => {
   if (!file) return null;
@@ -16,6 +17,19 @@ const uploadImageIfPresent = async (file) => {
   );
 
   return upload.secure_url;
+};
+
+const emitAnnouncementPublished = (doc) => {
+  io.to("users").emit("announcement:published", {
+    announcementId: doc._id,
+    title: doc.title,
+    message: doc.message,
+    eventDate: doc.eventDate,
+    eventTime: doc.eventTime,
+    location: doc.location,
+    type: doc.type,
+    status: doc.status
+  });
 };
 
 export const createAnnouncementService = async (req) => {
@@ -58,6 +72,11 @@ export const createAnnouncementService = async (req) => {
     createdBy: req.user._id
   });
 
+  // Notify only if announcement is published on create
+  if (doc.status === "Published") {
+    emitAnnouncementPublished(doc);
+  }
+
   return doc;
 };
 
@@ -66,6 +85,12 @@ export const updateAnnouncementService = async (id, req) => {
     throw new Error("Invalid announcement id");
   }
 
+  const existing = await Announcement.findById(id);
+  if (!existing) {
+    throw new Error("Announcement not found");
+  }
+
+  const oldStatus = existing.status;
   const updates = { ...req.body };
   delete updates.announcementId;
   delete updates.createdBy;
@@ -83,12 +108,11 @@ export const updateAnnouncementService = async (id, req) => {
     updates.imageUrl = imageUrl;
   }
 
-  const doc = await Announcement.findByIdAndUpdate(id, updates, {
-    new: true
-  });
+  const doc = await Announcement.findByIdAndUpdate(id, updates, { new: true });
 
-  if (!doc) {
-    throw new Error("Announcement not found");
+  // Notify only on Draft -> Published transition
+  if (oldStatus === "Draft" && doc.status === "Published") {
+    emitAnnouncementPublished(doc);
   }
 
   return doc;

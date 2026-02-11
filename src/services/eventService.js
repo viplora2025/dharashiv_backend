@@ -1,6 +1,7 @@
 import Event from "../models/eventModel.js";
 import { generateEventId } from "../utils/generateIds.js";
 import mongoose from "mongoose";
+import { io } from "../server.js";
 export const createEventService = async (data) => {
   try {
     const {
@@ -44,6 +45,16 @@ export const createEventService = async (data) => {
       address: address || null,
       maxTokens: maxTokens || 100,
       createdBy               // <-- ObjectId from req.user._id
+    });
+
+    // Event create -> notify all connected app users
+    io.to("users").emit("event:new", {
+      eventId: event._id,
+      title: event.title,
+      eventDate: event.eventDate,
+      startTime: event.startTime,
+      endTime: event.endTime,
+      status: event.status
     });
 
     return event;

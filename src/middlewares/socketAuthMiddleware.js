@@ -51,6 +51,8 @@ const socketAuthMiddleware = async (socket, next) => {
 
       // room join (user specific)
       socket.join(`user:${user.appUserId}`);
+      // room join (all users broadcast)
+      socket.join("users");
     }
 
     // ================= STAFF / ADMIN / SUPERADMIN =================

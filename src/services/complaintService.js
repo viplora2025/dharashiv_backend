@@ -10,6 +10,31 @@ import { io } from "../server.js";
 import { uploadToCloudinary } from "../utils/cloudinaryUpload.js";
 import { getMediaTypeAndResource } from "../utils/mediaType.js";
 import { validateFileSignature } from "../utils/fileSignature.js";
+
+const emitToTalukaAdmins = async (talukaId, eventName, payload) => {
+  if (!talukaId) return;
+
+  const admins = await Admin.find({ assignedTaluka: talukaId }).select("adminId");
+  admins.forEach((admin) => {
+    io.to(`admin:${admin.adminId}`).emit(eventName, payload);
+  });
+};
+
+const emitComplaintNotification = async ({
+  talukaId,
+  appUserId,
+  adminEvent,
+  userEvent,
+  payload
+}) => {
+  if (adminEvent) {
+    await emitToTalukaAdmins(talukaId, adminEvent, payload);
+  }
+
+  if (userEvent && appUserId) {
+    io.to(`user:${appUserId}`).emit(userEvent, payload);
+  }
+};
 /* ===================================================== */
 /* ================= CREATE COMPLAINT ================== */
 /* ===================================================== */
@@ -83,16 +108,16 @@ export const createComplaintService = async (req) => {
 
   /* 🔔 SOCKET NOTIFICATION → TALUKA ADMINS */
   try {
-    const talukaId = complainerDoc.taluka;
-
-    const admins = await Admin.find({ assignedTaluka: talukaId });
-
-    admins.forEach((admin) => {
-      io.to(`admin:${admin.adminId}`).emit("complaint:new", {
+    await emitComplaintNotification({
+      talukaId: complainerDoc.taluka,
+      adminEvent: "complaint:new",
+      payload: {
         complaintId: complaint._id,
         subject: complaint.subject,
-        talukaId,
-      });
+        status: complaint.status,
+        talukaId: complainerDoc.taluka,
+        createdAt: complaint.createdAt
+      }
     });
   } catch (err) {
     console.error("Socket emit failed (complaint:new):", err.message);
@@ -290,10 +315,15 @@ export const updateComplaintStatusService = async (id, status, req) => {
     throw new Error("Invalid status value");
   }
 
-  const complaint = await Complaint.findById(id).populate({
-    path: "complainer",
-    select: "taluka"
-  });
+  const complaint = await Complaint.findById(id)
+    .populate({
+      path: "complainer",
+      select: "taluka"
+    })
+    .populate({
+      path: "filedBy",
+      select: "appUserId"
+    });
   if (!complaint) throw new Error("Complaint not found");
 
   if (!["admin", "superadmin"].includes(req.role)) {
@@ -328,6 +358,23 @@ export const updateComplaintStatusService = async (id, status, req) => {
   });
 
   await complaint.save();
+
+  try {
+    await emitComplaintNotification({
+      talukaId: complaint.complainer?.taluka,
+      appUserId: complaint.filedBy?.appUserId,
+      adminEvent: null,
+      userEvent: "complaint:status-updated",
+      payload: {
+        complaintId: complaint._id,
+        status: complaint.status,
+        updatedByRole: req.role,
+        updatedAt: complaint.updatedAt
+      }
+    });
+  } catch (err) {
+    console.error("Socket emit failed (complaint:status-updated):", err.message);
+  }
 };
 
 /* ===================================================== */
@@ -393,6 +440,10 @@ export const addChatMessageService = async (id, req) => {
   const complaint = await Complaint.findById(id)
     .select("history filedBy complainer")
     .populate({
+      path: "filedBy",
+      select: "appUserId",
+    })
+    .populate({
       path: "complainer",
       select: "taluka",
     });
@@ -411,7 +462,7 @@ export const addChatMessageService = async (id, req) => {
 
   if (
     req.role === "user" &&
-    complaint.filedBy.toString() !== req.user._id.toString()
+    (complaint.filedBy?._id?.toString() || complaint.filedBy?.toString()) !== req.user._id.toString()
   ) {
     throw new Error("Not allowed");
   }
@@ -450,6 +501,28 @@ export const addChatMessageService = async (id, req) => {
   });
 
   await complaint.save();
+
+  const latestMessage = complaint.history[complaint.history.length - 1];
+
+  try {
+    const isUserSender = req.role === "user";
+
+    await emitComplaintNotification({
+      talukaId: complaint.complainer?.taluka,
+      appUserId: complaint.filedBy?.appUserId,
+      adminEvent: isUserSender ? "complaint:chat:new" : null,
+      userEvent: isUserSender ? null : "complaint:chat:new",
+      payload: {
+        complaintId: complaint._id,
+        byRole: latestMessage.byRole,
+        message: latestMessage.message || null,
+        mediaCount: Array.isArray(latestMessage.media) ? latestMessage.media.length : 0,
+        timestamp: latestMessage.timestamp
+      }
+    });
+  } catch (err) {
+    console.error("Socket emit failed (complaint:chat:new):", err.message);
+  }
 
   return complaint;
 };
