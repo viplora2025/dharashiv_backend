@@ -14,7 +14,7 @@ import {
 } from "../controllers/complaintController.js";
 
 import upload from "../middlewares/uploadMiddleware.js";
-import { auth, adminOnly } from "../middlewares/authMiddleware.js";
+import { auth, adminOnly, userOnly } from "../middlewares/authMiddleware.js";
 import { complaintCreateLimiter } from "../middlewares/rateLimit.js";
 
 const router = express.Router();
@@ -22,7 +22,7 @@ const router = express.Router();
 /* ===================================================== */
 /* ================= CREATE COMPLAINT ================== */
 /* ===================================================== */
-router.post("/", complaintCreateLimiter, auth, upload.array("media", 5), createComplaint);
+router.post("/", complaintCreateLimiter, auth, userOnly, upload.array("media", 5), createComplaint);
 
 /* ===================================================== */
 /* ================= ADMIN / SUPERADMIN ================= */

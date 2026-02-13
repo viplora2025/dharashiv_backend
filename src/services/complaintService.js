@@ -2,6 +2,7 @@ import Complaint from "../models/complaintModel.js";
 import AppUser from "../models/appUserModel.js";
 import Complainer from "../models/complainerModel.js";
 import Counter from "../models/counterModel.js";
+import Department from "../models/departmentModel.js";
 import cloudinary from "../config/cloudinary.js";
 import mongoose from "mongoose";
 import generateComplaintId from "../utils/generateComplaintId.js";
@@ -44,6 +45,10 @@ export const createComplaintService = async (req) => {
   const { complainer, department, subject, description, specification } =
     req.body;
 
+  if (req.role !== "user") {
+    throw new Error("Only users can create complaints");
+  }
+
   if (!complainer || !department || !subject || !description) {
     throw new Error("Required fields missing");
   }
@@ -57,6 +62,9 @@ export const createComplaintService = async (req) => {
   if (complainerDoc.addedBy.toString() !== filedBy.toString()) {
     throw new Error("You cannot use this complainer");
   }
+
+  const departmentDoc = await Department.findById(department);
+  if (!departmentDoc) throw new Error("Department not found");
 
   /* 📤 Upload media */
   let media = [];

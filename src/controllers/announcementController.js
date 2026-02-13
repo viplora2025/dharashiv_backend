@@ -40,7 +40,7 @@ export const deleteAnnouncement = async (req, res) => {
 
 export const getAnnouncementById = async (req, res) => {
   try {
-    const doc = await getAnnouncementByIdService(req.params.id);
+    const doc = await getAnnouncementByIdService(req.params.id, req);
     sendSuccess(res, { data: doc });
   } catch (err) {
     sendError(res, { status: 404, message: err.message });
@@ -49,7 +49,7 @@ export const getAnnouncementById = async (req, res) => {
 
 export const getAllAnnouncements = async (req, res) => {
   try {
-    const docs = await getAllAnnouncementsService();
+    const docs = await getAllAnnouncementsService(req);
     sendSuccess(res, { data: docs });
   } catch (err) {
     sendError(res, { status: 500, message: err.message });

@@ -3,12 +3,18 @@ import Announcement from "../models/announcementModel.js";
 import cloudinary from "../config/cloudinary.js";
 import { generateAnnouncementId } from "../utils/announcementIds.js";
 import { io } from "../server.js";
+import { validateFileSignature } from "../utils/fileSignature.js";
 
 const uploadImageIfPresent = async (file) => {
   if (!file) return null;
 
   if (!file.mimetype.startsWith("image/")) {
     throw new Error("Only image files are allowed");
+  }
+
+  const ok = validateFileSignature(file);
+  if (!ok) {
+    throw new Error("File signature mismatch / corrupted file");
   }
 
   const upload = await cloudinary.uploader.upload(
@@ -108,7 +114,10 @@ export const updateAnnouncementService = async (id, req) => {
     updates.imageUrl = imageUrl;
   }
 
-  const doc = await Announcement.findByIdAndUpdate(id, updates, { new: true });
+  const doc = await Announcement.findByIdAndUpdate(id, updates, {
+    new: true,
+    runValidators: true
+  });
 
   // Notify only on Draft -> Published transition
   if (oldStatus === "Draft" && doc.status === "Published") {
@@ -131,7 +140,7 @@ export const deleteAnnouncementService = async (id) => {
   return true;
 };
 
-export const getAnnouncementByIdService = async (id) => {
+export const getAnnouncementByIdService = async (id, req) => {
   if (!mongoose.Types.ObjectId.isValid(id)) {
     throw new Error("Invalid announcement id");
   }
@@ -141,9 +150,14 @@ export const getAnnouncementByIdService = async (id) => {
     throw new Error("Announcement not found");
   }
 
+  if (req.role === "user" && doc.status !== "Published") {
+    throw new Error("Announcement not found");
+  }
+
   return doc;
 };
 
-export const getAllAnnouncementsService = async () => {
-  return await Announcement.find().sort({ eventDate: -1, createdAt: -1 });
+export const getAllAnnouncementsService = async (req) => {
+  const filter = req.role === "user" ? { status: "Published" } : {};
+  return await Announcement.find(filter).sort({ eventDate: -1, createdAt: -1 });
 };

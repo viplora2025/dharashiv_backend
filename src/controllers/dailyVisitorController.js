@@ -9,6 +9,7 @@ import {
   getDailyVisitorsByMonthService,
   getDailyVisitorsByYearService
 } from "../services/dailyVisitorService.js";
+import { parsePageLimit } from "../utils/queryValidation.js";
 import { sendError, sendSuccess } from "../utils/response.js";
 
 export const createDailyVisitor = async (req, res) => {
@@ -56,8 +57,15 @@ export const getDailyVisitorById = async (req, res) => {
 
 export const getAllDailyVisitors = async (req, res) => {
   try {
-    const docs = await getAllDailyVisitorsService();
-    sendSuccess(res, { data: docs });
+    const { page, limit } = parsePageLimit(req.query);
+    const result = await getAllDailyVisitorsService(page, limit);
+    sendSuccess(res, {
+      page,
+      limit,
+      totalRecords: result.totalRecords,
+      totalPages: Math.ceil(result.totalRecords / limit),
+      data: result.data
+    });
   } catch (err) {
     sendError(res, { status: 500, message: err.message });
   }
@@ -65,8 +73,15 @@ export const getAllDailyVisitors = async (req, res) => {
 
 export const getDailyVisitorsByDate = async (req, res) => {
   try {
-    const docs = await getDailyVisitorsByDateService(req.params.date);
-    sendSuccess(res, { data: docs });
+    const { page, limit } = parsePageLimit(req.query);
+    const result = await getDailyVisitorsByDateService(req.params.date, page, limit);
+    sendSuccess(res, {
+      page,
+      limit,
+      totalRecords: result.totalRecords,
+      totalPages: Math.ceil(result.totalRecords / limit),
+      data: result.data
+    });
   } catch (err) {
     sendError(res, { status: 400, message: err.message });
   }
@@ -74,8 +89,15 @@ export const getDailyVisitorsByDate = async (req, res) => {
 
 export const getDailyVisitorsByWeek = async (req, res) => {
   try {
-    const docs = await getDailyVisitorsByWeekService(req.query.date);
-    sendSuccess(res, { data: docs });
+    const { page, limit } = parsePageLimit(req.query);
+    const result = await getDailyVisitorsByWeekService(req.query.date, page, limit);
+    sendSuccess(res, {
+      page,
+      limit,
+      totalRecords: result.totalRecords,
+      totalPages: Math.ceil(result.totalRecords / limit),
+      data: result.data
+    });
   } catch (err) {
     sendError(res, { status: 400, message: err.message });
   }
@@ -84,8 +106,15 @@ export const getDailyVisitorsByWeek = async (req, res) => {
 export const getDailyVisitorsByMonth = async (req, res) => {
   try {
     const { year, month } = req.params;
-    const docs = await getDailyVisitorsByMonthService(year, month);
-    sendSuccess(res, { data: docs });
+    const { page, limit } = parsePageLimit(req.query);
+    const result = await getDailyVisitorsByMonthService(year, month, page, limit);
+    sendSuccess(res, {
+      page,
+      limit,
+      totalRecords: result.totalRecords,
+      totalPages: Math.ceil(result.totalRecords / limit),
+      data: result.data
+    });
   } catch (err) {
     sendError(res, { status: 400, message: err.message });
   }
@@ -94,8 +123,15 @@ export const getDailyVisitorsByMonth = async (req, res) => {
 export const getDailyVisitorsByYear = async (req, res) => {
   try {
     const { year } = req.params;
-    const docs = await getDailyVisitorsByYearService(year);
-    sendSuccess(res, { data: docs });
+    const { page, limit } = parsePageLimit(req.query);
+    const result = await getDailyVisitorsByYearService(year, page, limit);
+    sendSuccess(res, {
+      page,
+      limit,
+      totalRecords: result.totalRecords,
+      totalPages: Math.ceil(result.totalRecords / limit),
+      data: result.data
+    });
   } catch (err) {
     sendError(res, { status: 400, message: err.message });
   }

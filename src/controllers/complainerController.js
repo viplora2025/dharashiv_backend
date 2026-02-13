@@ -102,7 +102,8 @@ export const updateComplainer = async (req, res) => {
   try {
     const data = await updateComplainerService(
       req.params.id,
-      req.body
+      req.body,
+      req
     );
 
     sendSuccess(res, {
@@ -118,7 +119,7 @@ export const updateComplainer = async (req, res) => {
 // DELETE
 export const deleteComplainer = async (req, res) => {
   try {
-    await deleteComplainerService(req.params.id);
+    await deleteComplainerService(req.params.id, req);
     sendSuccess(res, {
       status: 200,
       message: "Complainer deleted successfully"
@@ -165,6 +166,15 @@ export const getComplainersByTaluka = async (req, res) => {
     const { talukaId } = req.params;
 
     validateObjectId(talukaId, "talukaId");
+
+    if (req.role === "admin") {
+      const assigned = req.user.assignedTaluka || [];
+      const allowed = assigned.some((t) => t.toString() === talukaId.toString());
+      if (!allowed) {
+        return sendError(res, { status: 403, message: "Access denied to this Taluka" });
+      }
+    }
+
     const { page, limit } = parsePageLimit(req.query);
 
     const data = await getComplainersByTalukaService(

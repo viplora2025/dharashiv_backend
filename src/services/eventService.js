@@ -75,10 +75,47 @@ export const updateEventService = async (id, data) => {
       throw new Error("Invalid event id");
     }
 
+    const allowedFields = [
+      "title",
+      "eventDate",
+      "startTime",
+      "endTime",
+      "address",
+      "maxTokens",
+      "status",
+      "meetingSummary"
+    ];
+
+    const updates = {};
+    allowedFields.forEach((field) => {
+      if (data[field] !== undefined) {
+        updates[field] = data[field];
+      }
+    });
+
+    if (Object.keys(updates).length === 0) {
+      throw new Error("No valid fields provided for update");
+    }
+
+    if (updates.eventDate !== undefined) {
+      const parsedDate = new Date(updates.eventDate);
+      if (Number.isNaN(parsedDate.getTime())) {
+        throw new Error("Invalid eventDate");
+      }
+      updates.eventDate = parsedDate;
+    }
+
+    if (updates.maxTokens !== undefined) {
+      if (!Number.isInteger(Number(updates.maxTokens)) || Number(updates.maxTokens) < 1) {
+        throw new Error("maxTokens must be a positive integer");
+      }
+      updates.maxTokens = Number(updates.maxTokens);
+    }
+
     const event = await Event.findByIdAndUpdate(
       id,
-      data,
-      { new: true }
+      updates,
+      { new: true, runValidators: true }
     );
 
     if (!event) {

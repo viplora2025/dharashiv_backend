@@ -10,15 +10,15 @@ import {
     getComplainersByUserAndTaluka,
     getComplainersByTaluka
 } from "../controllers/complainerController.js";
-import { auth, adminOnly } from "../middlewares/authMiddleware.js";
+import { auth, adminOnly, userOnly } from "../middlewares/authMiddleware.js";
 
 const router = express.Router();
 
-router.post("/", auth, createComplainer);
+router.post("/", auth, userOnly, createComplainer);
 router.get("/", auth, adminOnly, getAllComplainers);
 
 router.get("/by-user-taluka/:userId/:talukaId", auth, getComplainersByUserAndTaluka);
-router.get("/by-taluka/:talukaId", auth, getComplainersByTaluka);
+router.get("/by-taluka/:talukaId", auth, adminOnly, getComplainersByTaluka);
 router.get("/by-user/:userId", auth, getComplainersByAppUser);
 
 router.get("/:id", auth, getComplainerById);

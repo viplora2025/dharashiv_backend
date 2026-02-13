@@ -3,6 +3,9 @@
 import mongoose from "mongoose";
 import Village from "../models/villageModel.js";
 import Taluka from "../models/talukaModel.js";
+import Complainer from "../models/complainerModel.js";
+import Complaint from "../models/complaintModel.js";
+import Visitor from "../models/visitorModel.js";
 import Counter from "../models/counterModel.js";
 import { generateVillageId } from "../utils/generateIds.js";
 
@@ -75,7 +78,7 @@ export const updateVillageService = async (villageId, name) => {
   const updated = await Village.findOneAndUpdate(
     { villageId },
     { name },
-    { new: true }
+    { new: true, runValidators: true }
   );
 
   if (!updated) {
@@ -87,6 +90,31 @@ export const updateVillageService = async (villageId, name) => {
 
 /* ================= DELETE VILLAGE ================= */
 export const deleteVillageService = async (villageId) => {
+  const village = await Village.findOne({ villageId }).select("_id");
+  if (!village) {
+    throw new Error("Village not found");
+  }
+
+  const [complainerCount, visitorCount] = await Promise.all([
+    Complainer.countDocuments({ village: village._id }),
+    Visitor.countDocuments({ village: village._id })
+  ]);
+
+  let complaintCount = 0;
+  if (complainerCount > 0) {
+    const complainerIds = await Complainer.find(
+      { village: village._id },
+      { _id: 1 }
+    ).lean();
+    complaintCount = await Complaint.countDocuments({
+      complainer: { $in: complainerIds.map((c) => c._id) }
+    });
+  }
+
+  if (complainerCount > 0 || complaintCount > 0 || visitorCount > 0) {
+    throw new Error("Cannot delete village because dependent records exist");
+  }
+
   const deleted = await Village.findOneAndDelete({ villageId });
   if (!deleted) {
     throw new Error("Village not found");
@@ -97,6 +125,11 @@ export const deleteVillageService = async (villageId) => {
 
 /* ================= RESET VILLAGE COUNTER ================= */
 export const resetVillageCounterService = async () => {
+  const villageCount = await Village.countDocuments();
+  if (villageCount > 0) {
+    throw new Error("Cannot reset village counter while village records exist");
+  }
+
   await Counter.findByIdAndUpdate(
     "villageId",
     { seq: 0 },

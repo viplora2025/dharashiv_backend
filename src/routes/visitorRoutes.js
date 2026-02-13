@@ -1,5 +1,5 @@
 import express from "express";
-import { auth, adminOnly } from "../middlewares/authMiddleware.js";
+import { auth, adminOnly, staffOnly } from "../middlewares/authMiddleware.js";
 import {
   registerVisitor,
   getVisitorsByEvent,
@@ -12,7 +12,7 @@ const router = express.Router();
 
 router.post("/", auth, registerVisitor);
 
-router.get("/event/:eventId", auth, getVisitorsByEvent);
+router.get("/event/:eventId", auth, staffOnly, getVisitorsByEvent);
 
 router.get("/my", auth, getVisitorsByAppUser);
 

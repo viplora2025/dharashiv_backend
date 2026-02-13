@@ -12,7 +12,7 @@ import {
   getVillageByTalukaObjectId,
   createMultipleVillages
 } from "../controllers/villageController.js";
-import { auth, adminOnly,superAdminOnly } from "../middlewares/authMiddleware.js";
+import { auth, superAdminOnly } from "../middlewares/authMiddleware.js";
 
 const router = express.Router();
 
@@ -37,6 +37,6 @@ router.put("/reset-counter", auth, superAdminOnly, resetVillageCounter);
 
 router.get("/by2-taluka/:talukaObjectId", auth, getVillageByTalukaObjectId);
 
-router.post("/bulk", auth, adminOnly, createMultipleVillages);
+router.post("/bulk", auth, superAdminOnly, createMultipleVillages);
 
 export default router;

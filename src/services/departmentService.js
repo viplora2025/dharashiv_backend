@@ -81,7 +81,7 @@ export const updateDepartmentService = async (deptId, { name, description }) => 
   const updated = await Department.findOneAndUpdate(
     { deptId },
     update,
-    { new: true }
+    { new: true, runValidators: true }
   );
 
   if (!updated) {

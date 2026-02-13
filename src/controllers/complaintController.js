@@ -24,7 +24,8 @@ export const createComplaint = async (req, res) => {
     sendSuccess(res, {
       status: 201,
       message: "Complaint created successfully",
-      complaintId: complaint._id
+      id: complaint._id,
+      complaintId: complaint.complaintId
     });
   } catch (err) {
     sendError(res, { status: 400, message: err.message });
