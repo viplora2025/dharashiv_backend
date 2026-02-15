@@ -33,8 +33,8 @@ const fileFilter = (req, file, cb) => {
 const upload = multer({
   storage,
   limits: {
-    fileSize: 10 * 1024 * 1024, // 10MB
-    files: 5, // max 5 files per complaint (IMPORTANT)
+    fileSize: 15 * 1024 * 1024, // ✅ 15MB (voice safe)
+    files: 11, // ✅ 1 voice + 10 attachments max
   },
   fileFilter,
 });

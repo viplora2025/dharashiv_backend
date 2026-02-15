@@ -22,7 +22,17 @@ const router = express.Router();
 /* ===================================================== */
 /* ================= CREATE COMPLAINT ================== */
 /* ===================================================== */
-router.post("/", complaintCreateLimiter, auth, userOnly, upload.array("media", 5), createComplaint);
+router.post(
+  "/",
+  complaintCreateLimiter,
+  auth,
+  userOnly,
+  upload.fields([
+    { name: "voiceNote", maxCount: 1 },
+    { name: "attachments", maxCount: 10 }
+  ]),
+  createComplaint
+);
 
 /* ===================================================== */
 /* ================= ADMIN / SUPERADMIN ================= */

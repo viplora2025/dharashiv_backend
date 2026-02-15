@@ -49,8 +49,17 @@ export const createComplaintService = async (req) => {
     throw new Error("Only users can create complaints");
   }
 
-  if (!complainer || !department || !subject || !description) {
+  if (!complainer || !department) {
     throw new Error("Required fields missing");
+  }
+
+  const hasText =
+    (subject && subject.trim()) || (description && description.trim());
+
+  const hasVoice = !!req.files?.voiceNote?.length;
+
+  if (!hasText && !hasVoice) {
+    throw new Error("Either text complaint or voice note is required");
   }
 
   const filedBy = req.user._id;
@@ -66,11 +75,11 @@ export const createComplaintService = async (req) => {
   const departmentDoc = await Department.findById(department);
   if (!departmentDoc) throw new Error("Department not found");
 
-  /* 📤 Upload media */
+  /* 📤 Upload attachments */
   let media = [];
-  if (req.files?.length) {
+  if (req.files?.attachments?.length) {
     media = await Promise.all(
-      req.files.map(async (file) => {
+      req.files.attachments.map(async (file) => {
         // 🔐 signature validation
         const ok = validateFileSignature(file);
         if (!ok) throw new Error("File signature mismatch / corrupted file");
@@ -78,7 +87,7 @@ export const createComplaintService = async (req) => {
         const { type, resource_type } = getMediaTypeAndResource(file.mimetype);
 
         const upload = await uploadToCloudinary(file.buffer, {
-          folder: "complaints",
+          folder: "complaints/attachments",
           resource_type,
         });
 
@@ -88,6 +97,27 @@ export const createComplaintService = async (req) => {
         };
       })
     );
+  }
+
+  /* 🎙️ Upload voice note (single) */
+  let voiceNote = null;
+
+  if (req.files?.voiceNote?.length) {
+    const file = req.files.voiceNote[0];
+
+    const ok = validateFileSignature(file);
+    if (!ok) throw new Error("File signature mismatch / corrupted file");
+
+    // Voice should always be treated as audio
+    const upload = await uploadToCloudinary(file.buffer, {
+      folder: "complaints/voice",
+      resource_type: "video", // Cloudinary audio works best as video
+    });
+
+    voiceNote = {
+      url: upload.secure_url,
+      format: file.mimetype,
+    };
   }
 
   /* 🆔 Generate complaint ID */
@@ -100,12 +130,13 @@ export const createComplaintService = async (req) => {
     complainer,
     department,
     specification,
-    subject,
-    description,
+    subject: subject?.trim() || null,
+    description: description?.trim() || null,
+    voiceNote,
     media,
     history: [
       {
-        message: "Complaint registered",
+        message: voiceNote ? "Voice complaint registered" : "Complaint registered",
         by: filedBy,
         byRole: "user",
         byModel: "AppUser",
@@ -121,11 +152,11 @@ export const createComplaintService = async (req) => {
       adminEvent: "complaint:new",
       payload: {
         complaintId: complaint._id,
-        subject: complaint.subject,
+        subject: complaint.subject || "Voice Complaint",
         status: complaint.status,
         talukaId: complainerDoc.taluka,
-        createdAt: complaint.createdAt
-      }
+        createdAt: complaint.createdAt,
+      },
     });
   } catch (err) {
     console.error("Socket emit failed (complaint:new):", err.message);
