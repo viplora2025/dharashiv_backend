@@ -61,7 +61,7 @@ export const validateFileSignature = (file) => {
   }
 
   // WAV: RIFF....WAVE
-  if (mimetype === "audio/wav") {
+  if (mimetype === "audio/wav" || mimetype === "audio/x-wav") {
     return (
       buffer.toString("ascii", 0, 4) === "RIFF" &&
       buffer.toString("ascii", 8, 12) === "WAVE"
@@ -76,6 +76,25 @@ export const validateFileSignature = (file) => {
       buffer[2] === 0xdf &&
       buffer[3] === 0xa3
     );
+  }
+
+  // OGG: OggS
+  if (mimetype === "audio/ogg") {
+    return buffer.toString("ascii", 0, 4) === "OggS";
+  }
+
+  // AAC (ADTS): FF F1 or FF F9
+  if (mimetype === "audio/aac") {
+    return buffer[0] === 0xff && (buffer[1] & 0xf0) === 0xf0;
+  }
+
+  // M4A / Audio MP4: ....ftyp
+  if (
+    mimetype === "audio/mp4" ||
+    mimetype === "audio/x-m4a" ||
+    mimetype === "audio/m4a"
+  ) {
+    return buffer.toString("ascii", 4, 8) === "ftyp";
   }
 
   // Unknown type -> reject

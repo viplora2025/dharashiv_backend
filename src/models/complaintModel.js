@@ -23,8 +23,7 @@ const complaintSchema = new mongoose.Schema(
 
     department: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: "Department",
-      required: true,
+      ref: "Department", 
     },
 
     specification: {

@@ -15,7 +15,13 @@ const fileFilter = (req, file, cb) => {
     "audio/mpeg",
     "audio/mp3",
     "audio/wav",
+    "audio/x-wav",
     "audio/webm",
+    "audio/ogg",
+    "audio/aac",
+    "audio/mp4",
+    "audio/m4a",
+    "audio/x-m4a",
   ];
 
   if (allowedTypes.includes(file.mimetype)) {
