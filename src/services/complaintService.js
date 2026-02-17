@@ -49,8 +49,9 @@ export const createComplaintService = async (req) => {
     throw new Error("Only users can create complaints");
   }
 
-  if (!complainer || !department) {
-    throw new Error("Required fields missing");
+  // ✅ Only complainer is required now
+  if (!complainer) {
+    throw new Error("Complainer is required");
   }
 
   const hasText =
@@ -72,8 +73,12 @@ export const createComplaintService = async (req) => {
     throw new Error("You cannot use this complainer");
   }
 
-  const departmentDoc = await Department.findById(department);
-  if (!departmentDoc) throw new Error("Department not found");
+  // ✅ Department optional
+  let departmentDoc = null;
+  if (department) {
+    departmentDoc = await Department.findById(department);
+    if (!departmentDoc) throw new Error("Department not found");
+  }
 
   /* 📤 Upload attachments */
   let media = [];
@@ -128,7 +133,7 @@ export const createComplaintService = async (req) => {
     complaintId,
     filedBy,
     complainer,
-    department,
+    department: department || null, // ✅ optional
     specification,
     subject: subject?.trim() || null,
     description: description?.trim() || null,
@@ -164,6 +169,7 @@ export const createComplaintService = async (req) => {
 
   return complaint;
 };
+
 
 /* ===================================================== */
 /* ================ GET ALL COMPLAINTS ================= */
