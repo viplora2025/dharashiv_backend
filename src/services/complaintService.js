@@ -42,6 +42,8 @@ const emitComplaintNotification = async ({
 
 
 export const createComplaintService = async (req) => {
+  console.log("FILES RECEIVED:", req.files);//temporary debug log
+
   const { complainer, department, subject, description, specification } =
     req.body;
 
@@ -94,6 +96,8 @@ export const createComplaintService = async (req) => {
         const upload = await uploadToCloudinary(file.buffer, {
           folder: "complaints/attachments",
           resource_type,
+          use_filename: true,
+          unique_filename: false,
         });
 
         return {
@@ -117,6 +121,8 @@ export const createComplaintService = async (req) => {
     const upload = await uploadToCloudinary(file.buffer, {
       folder: "complaints/voice",
       resource_type: "video", // Cloudinary audio works best as video
+      use_filename: true,
+      unique_filename: false,
     });
 
     voiceNote = {
@@ -526,6 +532,8 @@ export const addChatMessageService = async (id, req) => {
         const upload = await uploadToCloudinary(file.buffer, {
           folder: "complaint-chat",
           resource_type,
+          use_filename: true,
+          unique_filename: false,
         });
 
         return {
@@ -557,13 +565,14 @@ export const addChatMessageService = async (id, req) => {
       appUserId: complaint.filedBy?.appUserId,
       adminEvent: isUserSender ? "complaint:chat:new" : null,
       userEvent: isUserSender ? null : "complaint:chat:new",
+      //Socket Payload Missing Media
       payload: {
-        complaintId: complaint._id,
-        byRole: latestMessage.byRole,
-        message: latestMessage.message || null,
-        mediaCount: Array.isArray(latestMessage.media) ? latestMessage.media.length : 0,
-        timestamp: latestMessage.timestamp
-      }
+  complaintId: complaint._id,
+  byRole: latestMessage.byRole,
+  message: latestMessage.message || null,
+  media: latestMessage.media || [],
+  timestamp: latestMessage.timestamp
+}
     });
   } catch (err) {
     console.error("Socket emit failed (complaint:chat:new):", err.message);
