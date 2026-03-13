@@ -31,7 +31,7 @@ io.use(socketAuthMiddleware);
 io.on("connection", (socket) => {
   console.log("🟢 Socket connected:", socket.id);
 
-  const user = socket.user; // added by socketAuthMiddleware
+  const user = socket.user;
 
   if (!user) {
     console.log("⚠️ No user on socket");
@@ -42,7 +42,6 @@ io.on("connection", (socket) => {
   if (user.role === "user" && user.appUserId) {
     const room = `user:${user.appUserId}`;
     socket.join(room);
-
     console.log(`👤 User joined room: ${room}`);
   }
 
@@ -50,37 +49,36 @@ io.on("connection", (socket) => {
   if ((user.role === "admin" || user.role === "superadmin") && user.adminId) {
     const room = `admin:${user.adminId}`;
     socket.join(room);
-
     console.log(`🛠 Admin joined room: ${room}`);
   }
+
+  // ================= TYPING INDICATOR =================
+  socket.on("complaint:typing", (data) => {
+    const { complaintId, toRole } = data;
+
+    const user = socket.user;
+    if (!user) return;
+
+    if (toRole === "admin") {
+      io.to(`admin:${user.adminId}`).emit("complaint:typing", {
+        complaintId,
+        byRole: user.role
+      });
+    }
+
+    if (toRole === "user") {
+      io.to(`user:${user.appUserId}`).emit("complaint:typing", {
+        complaintId,
+        byRole: user.role
+      });
+    }
+  });
 
   socket.on("disconnect", () => {
     console.log("🔴 Socket disconnected:", socket.id);
   });
 });
 
-// ================= TYPING INDICATOR =================
-socket.on("complaint:typing", (data) => {
-  const { complaintId, toRole } = data;
-
-  const user = socket.user;
-  if (!user) return;
-
-  // send typing indicator to opposite side
-  if (toRole === "admin") {
-    io.to(`admin:${user.adminId}`).emit("complaint:typing", {
-      complaintId,
-      byRole: user.role
-    });
-  }
-
-  if (toRole === "user") {
-    io.to(`user:${user.appUserId}`).emit("complaint:typing", {
-      complaintId,
-      byRole: user.role
-    });
-  }
-});
 const PORT = process.env.PORT || 4000;
 
 // 🔹 IMPORTANT: listen on server, not app
