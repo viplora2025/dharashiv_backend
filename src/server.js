@@ -20,15 +20,16 @@ const server = http.createServer(app);
 const io = new Server(server, {
   cors: {
     origin: true,
-    credentials: true
-  }
+    credentials: true,
+  },
 });
 
 io.use(socketAuthMiddleware);
 
-
 // 🔹 Temporary test (sirf check ke liye) Add Room Join Logic
 io.on("connection", (socket) => {
+  // ✅ GLOBAL USERS ROOM (VERY IMPORTANT)
+
   console.log("🟢 Socket connected:", socket.id);
 
   const user = socket.user;
@@ -38,38 +39,37 @@ io.on("connection", (socket) => {
     return;
   }
 
-  /* ================= USER ROOM ================= */
-  if (user.role === "user" && user.appUserId) {
-    const room = `user:${user.appUserId}`;
-    socket.join(room);
-    console.log(`👤 User joined room: ${room}`);
-  }
-
-  /* ================= ADMIN ROOM ================= */
-  if ((user.role === "admin" || user.role === "superadmin") && user.adminId) {
-    const room = `admin:${user.adminId}`;
-    socket.join(room);
-    console.log(`🛠 Admin joined room: ${room}`);
-  }
 
   // ================= TYPING INDICATOR =================
   socket.on("complaint:typing", (data) => {
-    const { complaintId, toRole } = data;
+    if (!data || typeof data !== "object") return;
+
+    const { complaintId, toUserId, toAdminId } = data;
+
+    console.log("📨 Typing event received:", data);
+
+    if (toAdminId) {
+      console.log("➡️ Sending to admin room:", `admin:${toAdminId}`);
+    }
+
+    if (toUserId) {
+      console.log("➡️ Sending to user room:", `user:${toUserId}`);
+    }
 
     const user = socket.user;
     if (!user) return;
 
-    if (toRole === "admin") {
-      io.to(`admin:${user.adminId}`).emit("complaint:typing", {
+    if (toAdminId) {
+      io.to(`admin:${toAdminId}`).emit("complaint:typing", {
         complaintId,
-        byRole: user.role
+        byRole: user.role,
       });
     }
 
-    if (toRole === "user") {
-      io.to(`user:${user.appUserId}`).emit("complaint:typing", {
+    if (toUserId) {
+      io.to(`user:${toUserId}`).emit("complaint:typing", {
         complaintId,
-        byRole: user.role
+        byRole: user.role,
       });
     }
   });

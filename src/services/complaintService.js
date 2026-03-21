@@ -599,7 +599,7 @@ export const getComplaintChatService = async (id, req) => {
       path: "complainer",
       select: "taluka"
     })
-    .populate("history.by", "name appUserId");
+    .populate("history.by", "name phone appUserId adminId")
 
   if (!complaint) throw new Error("Complaint not found");
 
