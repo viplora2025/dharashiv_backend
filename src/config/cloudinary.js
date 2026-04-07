@@ -1,12 +1,8 @@
-import dotenv from "dotenv";
-dotenv.config(); // 👈 add here also (extra safety)
-
-
 import { v2 as cloudinary } from "cloudinary";
 
 console.log("🔴 BEFORE CONFIG", {
-  name: process.env.CLOUDINARY_CLOUD_NAME,
-  key: process.env.CLOUDINARY_API_KEY,
+  name: process.env.CLOUDINARY_CLOUD_NAME ? "SET" : "NOT SET",
+  key: process.env.CLOUDINARY_API_KEY ? "SET" : "NOT SET",
   secret: process.env.CLOUDINARY_API_SECRET ? "SET" : "NOT SET",
 });
 
