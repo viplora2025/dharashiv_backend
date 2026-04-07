@@ -11,10 +11,6 @@ import { generateTalukaId } from "../utils/generateIds.js";
 
 /* ================= CREATE TALUKA ================= */
 export const createTalukaService = async (name) => {
-  if (!name || !name.en || !name.mr) {
-    throw new Error("Both English (en) and Marathi (mr) names are required.");
-  }
-
   const talukaId = await generateTalukaId();
 
   const taluka = await Taluka.create({
@@ -35,10 +31,6 @@ export const getAllTalukasService = async () => {
 
 /* ================= UPDATE TALUKA ================= */
 export const updateTalukaService = async (talukaId, name) => {
-  if (!name || !name.en || !name.mr) {
-    throw new Error("Both English (en) and Marathi (mr) names are required.");
-  }
-
   const updated = await Taluka.findOneAndUpdate(
     { talukaId },
     {
@@ -93,7 +85,6 @@ export const deleteTalukaService = async (talukaId) => {
   }
 
   const deleted = await Taluka.findOneAndDelete({ talukaId });
-
   if (!deleted) {
     throw new Error("Taluka not found");
   }

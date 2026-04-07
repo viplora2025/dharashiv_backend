@@ -22,9 +22,17 @@ const departmentSchema = new mongoose.Schema(
       }
     },
 
-    description: {
+    email: {
       type: String,
-      trim: true
+      required: true,
+      unique: true,
+      trim: true,
+      lowercase: true,
+      index: true
+    },
+    description: {
+      en: { type: String, trim: true, default: "" },
+      mr: { type: String, trim: true, default: "" }
     }
   },
   { timestamps: true }

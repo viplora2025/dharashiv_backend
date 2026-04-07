@@ -1,24 +1,20 @@
+// src/services/complaintService.js
+
 import Complaint from "../models/complaintModel.js";
 import AppUser from "../models/appUserModel.js";
 import Complainer from "../models/complainerModel.js";
-import Counter from "../models/counterModel.js";
 import Department from "../models/departmentModel.js";
-import cloudinary from "../config/cloudinary.js";
 import mongoose from "mongoose";
 import generateComplaintId from "../utils/generateComplaintId.js";
-import Admin from "../models/adminModel.js";
 import { io } from "../server.js";
-import { uploadToCloudinary } from "../utils/cloudinaryUpload.js";
+import { storageService } from "./storageService.js";
 import { getMediaTypeAndResource } from "../utils/mediaType.js";
 import { validateFileSignature } from "../utils/fileSignature.js";
+import { sendComplaintForwardEmail } from "../utils/email.js";
 
-const emitToTalukaAdmins = async (talukaId, eventName, payload) => {
+const emitToTalukaAdmins = (talukaId, eventName, payload) => {
   if (!talukaId) return;
-
-  const admins = await Admin.find({ assignedTaluka: talukaId }).select("adminId");
-  admins.forEach((admin) => {
-    io.to(`admin:${admin.adminId}`).emit(eventName, payload);
-  });
+  io.to(`taluka:${talukaId.toString()}`).emit(eventName, payload);
 };
 
 const emitComplaintNotification = async ({
@@ -29,36 +25,22 @@ const emitComplaintNotification = async ({
   payload
 }) => {
   if (adminEvent) {
-    await emitToTalukaAdmins(talukaId, adminEvent, payload);
+    emitToTalukaAdmins(talukaId, adminEvent, payload);
   }
-
   if (userEvent && appUserId) {
     io.to(`user:${appUserId}`).emit(userEvent, payload);
   }
 };
-/* ===================================================== */
-/* ================= CREATE COMPLAINT ================== */
-/* ===================================================== */
 
-
+/* ================= CREATE COMPLAINT ================= */
 export const createComplaintService = async (req) => {
-  console.log("FILES RECEIVED:", req.files);//temporary debug log
-
-  const { complainer, department, subject, description, specification } =
-    req.body;
+  const { complainer, department, subject, description, specification } = req.body;
 
   if (req.role !== "user") {
     throw new Error("Only users can create complaints");
   }
 
-  // ✅ Only complainer is required now
-  if (!complainer) {
-    throw new Error("Complainer is required");
-  }
-
-  const hasText =
-    (subject && subject.trim()) || (description && description.trim());
-
+  const hasText = (subject && subject.trim()) || (description && description.trim());
   const hasVoice = !!req.files?.voiceNote?.length;
 
   if (!hasText && !hasVoice) {
@@ -67,178 +49,127 @@ export const createComplaintService = async (req) => {
 
   const filedBy = req.user._id;
 
-  // 🔍 Validate complainer
   const complainerDoc = await Complainer.findById(complainer);
   if (!complainerDoc) throw new Error("Complainer not found");
 
   if (complainerDoc.addedBy.toString() !== filedBy.toString()) {
-    throw new Error("You cannot use this complainer");
+    throw new Error("Access denied to this complainer");
   }
 
-  // ✅ Department optional
-  let departmentDoc = null;
-  if (department) {
-    departmentDoc = await Department.findById(department);
-    if (!departmentDoc) throw new Error("Department not found");
-  }
+  let uploadedFiles = []; // 🛡️ Tracking for cleanup hooks
 
-  /* 📤 Upload attachments */
-  let media = [];
-  if (req.files?.attachments?.length) {
-    media = await Promise.all(
-      req.files.attachments.map(async (file) => {
-        // 🔐 signature validation
-        const ok = validateFileSignature(file);
-        if (!ok) throw new Error("File signature mismatch / corrupted file");
-
-        const { type, resource_type } = getMediaTypeAndResource(file.mimetype);
-
-        const upload = await uploadToCloudinary(file.buffer, {
-          folder: "complaints/attachments",
-          resource_type,
-          use_filename: true,
-          unique_filename: false,
-        });
-
-        return {
-          type,
-          url: upload.secure_url,
-        };
-      })
-    );
-  }
-
-  /* 🎙️ Upload voice note (single) */
-  let voiceNote = null;
-
-  if (req.files?.voiceNote?.length) {
-    const file = req.files.voiceNote[0];
-
-    const ok = validateFileSignature(file);
-    if (!ok) throw new Error("File signature mismatch / corrupted file");
-
-    // Voice should always be treated as audio
-    const upload = await uploadToCloudinary(file.buffer, {
-      folder: "complaints/voice",
-      resource_type: "video", // Cloudinary audio works best as video
-      use_filename: true,
-      unique_filename: false,
-    });
-
-    voiceNote = {
-      url: upload.secure_url,
-      format: file.mimetype,
-    };
-  }
-
-  /* 🆔 Generate complaint ID */
-  const complaintId = await generateComplaintId(filedBy, complainer);
-
-  /* 📝 Create complaint */
-  const complaint = await Complaint.create({
-    complaintId,
-    filedBy,
-    complainer,
-    department: department || null, // ✅ optional
-    specification,
-    subject: subject?.trim() || null,
-    description: description?.trim() || null,
-    voiceNote,
-    media,
-    history: [
-      {
-        message: voiceNote ? "Voice complaint registered" : "Complaint registered",
-        by: filedBy,
-        byRole: "user",
-        byModel: "AppUser",
-        timestamp: new Date(),
-      },
-    ],
-  });
-
-  /* 🔔 SOCKET NOTIFICATION → TALUKA ADMINS */
   try {
-    await emitComplaintNotification({
-      talukaId: complainerDoc.taluka,
-      adminEvent: "complaint:new",
-      payload: {
-        complaintId: complaint._id,
-        subject: complaint.subject || "Voice Complaint",
-        status: complaint.status,
-        talukaId: complainerDoc.taluka,
-        createdAt: complaint.createdAt,
-      },
-    });
-  } catch (err) {
-    console.error("Socket emit failed (complaint:new):", err.message);
-  }
+    /* 📤 Upload attachments */
+    let media = [];
+    if (req.files?.attachments?.length) {
+      media = await Promise.all(
+        req.files.attachments.map(async (file) => {
+          const ok = validateFileSignature(file);
+          if (!ok) throw new Error("Corrupted file detected");
 
-  return complaint;
+          const upload = await storageService.uploadFile(file.buffer, file.mimetype, "complaints/attachments");
+          uploadedFiles.push({ publicId: upload.publicId, resourceType: upload.resourceType });
+
+          return { 
+            type: upload.type, 
+            url: upload.url, 
+            publicId: upload.publicId, 
+            resourceType: upload.resourceType 
+          };
+        })
+      );
+    }
+
+    /* 🎙️ Upload voice note */
+    let voiceNote = null;
+    if (req.files?.voiceNote?.length) {
+      const file = req.files.voiceNote[0];
+      const ok = validateFileSignature(file);
+      if (!ok) throw new Error("Corrupted voice note detected");
+
+      const upload = await storageService.uploadFile(file.buffer, file.mimetype, "complaints/voice");
+      uploadedFiles.push({ publicId: upload.publicId, resourceType: upload.resourceType });
+
+      voiceNote = {
+        url: upload.url,
+        format: file.mimetype,
+        publicId: upload.publicId,
+        resourceType: upload.resourceType
+      };
+    }
+
+    const complaintId = await generateComplaintId(filedBy, complainer);
+
+    const complaint = await Complaint.create({
+      complaintId,
+      filedBy,
+      complainer,
+      taluka: complainerDoc.taluka,
+      department: department || null,
+      specification,
+      subject: subject?.trim() || null,
+      description: description?.trim() || null,
+      voiceNote,
+      media,
+      history: [
+        {
+          message: voiceNote ? "Voice complaint registered" : "Complaint registered",
+          by: filedBy,
+          byRole: "user",
+          timestamp: new Date(),
+        },
+      ],
+    });
+
+    // Success! No cleanup needed.
+    try {
+      await emitComplaintNotification({
+        talukaId: complainerDoc.taluka,
+        adminEvent: "complaint:new",
+        payload: {
+          complaintId: complaint._id,
+          subject: complaint.subject || "Voice Complaint",
+          status: complaint.status,
+          talukaId: complainerDoc.taluka,
+          createdAt: complaint.createdAt,
+        },
+      });
+    } catch (err) {
+      console.error("Socket emit failed:", err.message);
+    }
+
+    return complaint;
+  } catch (err) {
+    /* 🛡️ FAILURE CLEANUP (Transactional safety for files) */
+    console.error("📦 DB/Upload Error - triggering file cleanup hooks...");
+    await storageService.deleteMultipleFiles(uploadedFiles);
+    throw err;
+  }
 };
 
-
-/* ===================================================== */
 /* ================ GET ALL COMPLAINTS ================= */
-/* ===================================================== */
 export const getAllComplaintsService = async (query, accessibleTalukas = null) => {
   const { status, department, filedBy, talukaId, page = 1, limit = 10 } = query;
-
   const filter = {};
   if (status) filter.status = status;
   if (department) filter.department = department;
   if (filedBy) filter.filedBy = filedBy;
 
-  // Admin with no assigned taluka should see nothing
   if (Array.isArray(accessibleTalukas) && accessibleTalukas.length === 0) {
     return { data: [], totalRecords: 0 };
   }
 
-  // 🌍 Taluka Filter Logic
-  let targetTalukas = [];
-
-  // 1️⃣ If a specific taluka is requested
   if (talukaId) {
-    if (!mongoose.Types.ObjectId.isValid(talukaId)) {
-      throw new Error("Invalid talukaId");
+    if (accessibleTalukas && !accessibleTalukas.some(t => t.toString() === talukaId.toString())) {
+      throw new Error("Access denied to this Taluka");
     }
-
-    // 🔒 Access Check: If restricted, ensure requested taluka is allowed
-    if (accessibleTalukas) {
-      const isAllowed = accessibleTalukas.some(
-        (t) => t.toString() === talukaId.toString()
-      );
-      if (!isAllowed) {
-        throw new Error("Access denied to this Taluka");
-      }
-    }
-
-    targetTalukas = [talukaId];
-  }
-  // 2️⃣ If no specific taluka, but user is restricted (Admin)
-  else if (accessibleTalukas && accessibleTalukas.length > 0) {
-    targetTalukas = accessibleTalukas;
-  }
-
-  // 🔎 Apply Taluka Filter (if any constraints exist)
-  if (targetTalukas.length > 0) {
-    const complainers = await Complainer.find(
-      { taluka: { $in: targetTalukas } },
-      { _id: 1 }
-    );
-
-    const ids = complainers.map((c) => c._id);
-
-    // If no complainers found for these talukas, return empty
-    if (!ids.length) {
-      return { data: [], totalRecords: 0 };
-    }
-
-    filter.complainer = { $in: ids };
+    filter.taluka = talukaId;
+  } else if (accessibleTalukas && accessibleTalukas.length > 0) {
+    filter.taluka = { $in: accessibleTalukas };
   }
 
   const skip = (page - 1) * limit;
   const totalRecords = await Complaint.countDocuments(filter);
-
   const data = await Complaint.find(filter)
     .select("complaintId subject status createdAt")
     .populate({
@@ -252,18 +183,14 @@ export const getAllComplaintsService = async (query, accessibleTalukas = null) =
     .populate("department", "name")
     .sort({ createdAt: -1 })
     .skip(skip)
-    .limit(Number(limit));
+    .limit(limit);
 
   return { data, totalRecords };
 };
 
-/* ===================================================== */
 /* =============== GET COMPLAINT BY ID ================= */
-/* ===================================================== */
 export const getComplaintByIdService = async (id, req) => {
-  if (!mongoose.Types.ObjectId.isValid(id)) {
-    throw new Error("Invalid complaint id");
-  }
+  if (req.role === "staff") throw new Error("Staff access denied to complaints");
 
   const complaint = await Complaint.findById(id)
     .populate("filedBy", "name phone appUserId")
@@ -276,135 +203,82 @@ export const getComplaintByIdService = async (id, req) => {
       ]
     })
     .populate("department", "name")
-    .populate({
-      path: "history.by",
-      select: "name phone appUserId"
-    });
+    .populate({ path: "history.by", select: "name phone appUserId" });
 
   if (!complaint) throw new Error("Complaint not found");
 
   if (req.role === "admin") {
     const assigned = req.user.assignedTaluka || [];
-    if (assigned.length === 0) {
-      throw new Error("Not allowed to view this complaint");
+    if (!assigned.some(t => t.toString() === complaint.taluka?.toString())) {
+      throw new Error("Access denied to this complaint");
     }
-
-    const talukaId = complaint.complainer?.taluka?._id?.toString();
-    const allowed = assigned.some(
-      (t) => t.toString() === talukaId
-    );
-    if (!allowed) {
-      throw new Error("Not allowed to view this complaint");
+  } else if (req.role === "user") {
+    if (complaint.filedBy?._id?.toString() !== req.user._id.toString()) {
+      throw new Error("Access denied to this complaint");
     }
-  }
-
-  if (
-    req.role === "user" &&
-    complaint.filedBy._id.toString() !== req.user._id.toString()
-  ) {
-    throw new Error("Not allowed to view this complaint");
   }
 
   return complaint;
 };
 
-/* ===================================================== */
 /* ========= GET COMPLAINTS BY COMPLAINER =============== */
-/* ===================================================== */
-export const getComplaintsByComplainerService = async (
-  complainerId,
-  req,
-  page,
-  limit
-) => {
+export const getComplaintsByComplainerService = async (complainerId, req, page, limit) => {
   const complainer = await Complainer.findById(complainerId);
   if (!complainer) throw new Error("Complainer not found");
 
   if (req.role === "admin") {
     const assigned = req.user.assignedTaluka || [];
-    if (assigned.length === 0) {
-      throw new Error("Not allowed for this complainer");
+    if (!assigned.some(t => t.toString() === complainer.taluka?.toString())) {
+      throw new Error("Access denied for this complainer");
     }
-    const talukaId = complainer.taluka?.toString();
-    const allowed = assigned.some(
-      (t) => t.toString() === talukaId
-    );
-    if (!allowed) {
-      throw new Error("Not allowed for this complainer");
+  } else if (req.role === "user") {
+    if (complainer.addedBy.toString() !== req.user._id.toString()) {
+      throw new Error("Access denied for this complainer");
     }
-  }
-
-  if (
-    req.role === "user" &&
-    complainer.addedBy.toString() !== req.user._id.toString()
-  ) {
-    throw new Error("Not allowed for this complainer");
   }
 
   const filter = { complainer: complainerId };
   const skip = (page - 1) * limit;
-
-  const totalRecords = await Complaint.countDocuments(filter);
-
-  const data = await Complaint.find(filter)
-    .select("complaintId subject status createdAt")
-    .populate("department", "name")
-    .populate("filedBy", "name appUserId")
-    .sort({ createdAt: -1 })
-    .skip(skip)
-    .limit(Number(limit));
+  const [data, totalRecords] = await Promise.all([
+    Complaint.find(filter)
+      .select("complaintId subject status createdAt")
+      .populate("department", "name")
+      .populate("filedBy", "name appUserId")
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit),
+    Complaint.countDocuments(filter)
+  ]);
 
   return { data, totalRecords };
 };
 
-/* ===================================================== */
 /* =============== UPDATE COMPLAINT STATUS ============== */
-/* ===================================================== */
 export const updateComplaintStatusService = async (id, status, req) => {
-  const allowedStatuses = ["open", "in-progress", "resolved", "closed"];
-  if (!allowedStatuses.includes(status)) {
-    throw new Error("Invalid status value");
-  }
-
   const complaint = await Complaint.findById(id)
-    .populate({
-      path: "complainer",
-      select: "taluka"
-    })
-    .populate({
-      path: "filedBy",
-      select: "appUserId"
-    });
+    .populate({ path: "complainer", select: "taluka" })
+    .populate({ path: "filedBy", select: "appUserId" });
+
   if (!complaint) throw new Error("Complaint not found");
 
   if (!["admin", "superadmin"].includes(req.role)) {
-    throw new Error("Only admin or superadmin can update status");
+    throw new Error("Unauthorized status update");
   }
 
   if (req.role === "admin") {
     const assigned = req.user.assignedTaluka || [];
-    if (assigned.length === 0) {
-      throw new Error("Not allowed to update this complaint");
-    }
-    const talukaId = complaint.complainer?.taluka?.toString();
-    const allowed = assigned.some(
-      (t) => t.toString() === talukaId
-    );
-    if (!allowed) {
-      throw new Error("Not allowed to update this complaint");
+    if (!assigned.some(t => t.toString() === complaint.taluka?.toString())) {
+      throw new Error("Access denied for status update");
     }
   }
 
-  if (complaint.status === status) {
-    throw new Error("Complaint already in this status");
-  }
+  if (complaint.status === status) throw new Error("Already in this status");
 
   complaint.status = status;
   complaint.history.push({
     message: `Status updated to ${status}`,
     by: req.user._id,
     byRole: req.role,
-    byModel: "Admin",
     timestamp: new Date()
   });
 
@@ -412,9 +286,8 @@ export const updateComplaintStatusService = async (id, status, req) => {
 
   try {
     await emitComplaintNotification({
-      talukaId: complaint.complainer?.taluka,
+      talukaId: complaint.taluka,
       appUserId: complaint.filedBy?.appUserId,
-      adminEvent: null,
       userEvent: "complaint:status-updated",
       payload: {
         complaintId: complaint._id,
@@ -424,13 +297,12 @@ export const updateComplaintStatusService = async (id, status, req) => {
       }
     });
   } catch (err) {
-    console.error("Socket emit failed (complaint:status-updated):", err.message);
+    console.error("Socket emit failed:", err.message);
   }
+  return complaint;
 };
 
-/* ===================================================== */
 /* ================= PUBLIC TRACKING =================== */
-/* ===================================================== */
 export const trackComplaintService = async (complaintId) => {
   const complaint = await Complaint.findOne({ complaintId })
     .select("complaintId status subject department history createdAt updatedAt")
@@ -443,7 +315,7 @@ export const trackComplaintService = async (complaintId) => {
     subject: complaint.subject,
     status: complaint.status,
     department: complaint.department,
-    history: complaint.history.map((h) => ({
+    history: complaint.history.map(h => ({
       message: h.message,
       byRole: h.byRole,
       timestamp: h.timestamp
@@ -453,265 +325,165 @@ export const trackComplaintService = async (complaintId) => {
   };
 };
 
-/* ===================================================== */
 /* ================= USER MY COMPLAINTS ================= */
-/* ===================================================== */
 export const getComplaintsByUserService = async (req, page, limit, status) => {
   const filter = { filedBy: req.user._id };
   if (status) filter.status = status;
 
   const skip = (page - 1) * limit;
-  const totalRecords = await Complaint.countDocuments(filter);
-
-  const data = await Complaint.find(filter)
-    .select("complaintId subject status createdAt updatedAt")
-    .populate("complainer", "name")
-    .populate("department", "name")
-    .sort({ createdAt: -1 })
-    .skip(skip)
-    .limit(Number(limit));
+  const [data, totalRecords] = await Promise.all([
+    Complaint.find(filter)
+      .select("complaintId subject status createdAt updatedAt")
+      .populate("complainer", "name")
+      .populate("department", "name")
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit),
+    Complaint.countDocuments(filter)
+  ]);
 
   return { data, totalRecords };
 };
 
-/* ===================================================== */
 /* ================= ADD CHAT MESSAGE ================== */
-/* ===================================================== */
 export const addChatMessageService = async (id, req) => {
+  if (req.role === "staff") throw new Error("Staff access denied to complaint chat");
+
   const { message } = req.body;
 
-  if (req.role === "staff") {
-    throw new Error("Staff cannot add chat messages");
-  }
-
-  if (!message?.trim() && !req.files?.length) {
-    throw new Error("Message or media is required");
-  }
+  if (!message?.trim() && !req.files?.length) throw new Error("Message required");
 
   const complaint = await Complaint.findById(id)
-    .select("history filedBy complainer")
-    .populate({
-      path: "filedBy",
-      select: "appUserId",
-    })
-    .populate({
-      path: "complainer",
-      select: "taluka",
-    });
+    .populate({ path: "filedBy", select: "appUserId" });
 
   if (!complaint) throw new Error("Complaint not found");
 
-  // 🔐 Permission checks
   if (req.role === "admin") {
     const assigned = req.user.assignedTaluka || [];
-    if (assigned.length === 0) throw new Error("Not allowed");
-
-    const talukaId = complaint.complainer?.taluka?.toString();
-    const allowed = assigned.some((t) => t.toString() === talukaId);
-    if (!allowed) throw new Error("Not allowed");
+    if (!assigned.some(t => t.toString() === complaint.taluka?.toString())) {
+      throw new Error("Access denied");
+    }
+  } else if (req.role === "user") {
+    if (complaint.filedBy?._id?.toString() !== req.user._id.toString()) {
+      throw new Error("Access denied");
+    }
   }
 
-  if (
-    req.role === "user" &&
-    (complaint.filedBy?._id?.toString() || complaint.filedBy?.toString()) !== req.user._id.toString()
-  ) {
-    throw new Error("Not allowed");
-  }
-
-  /* 📤 Upload chat media */
-  let media = [];
-  if (req.files?.length) {
-    media = await Promise.all(
-      req.files.map(async (file) => {
-        // 🔐 signature validation
-        const ok = validateFileSignature(file);
-        if (!ok) throw new Error("File signature mismatch / corrupted file");
-
-        const { type, resource_type } = getMediaTypeAndResource(file.mimetype);
-
-        const upload = await uploadToCloudinary(file.buffer, {
-          folder: "complaint-chat",
-          resource_type,
-          use_filename: true,
-          unique_filename: false,
-        });
-
-        return {
-          type,
-          url: upload.secure_url,
-        };
-      })
-    );
-  }
-
-  complaint.history.push({
-    message: message?.trim() || null,
-    media,
-    by: req.user._id,
-    byRole: req.role,
-    byModel: req.role === "user" ? "AppUser" : "Admin",
-    timestamp: new Date(),
-  });
-
-  await complaint.save();
-
-  const latestMessage = complaint.history[complaint.history.length - 1];
+  let uploadedFiles = []; // 🛡️ Tracking for cleanup hooks
 
   try {
-    const isUserSender = req.role === "user";
+    let media = [];
+    if (req.files?.length) {
+      media = await Promise.all(
+        req.files.map(async (file) => {
+          const ok = validateFileSignature(file);
+          if (!ok) throw new Error("Corrupted file");
 
-    await emitComplaintNotification({
-      talukaId: complaint.complainer?.taluka,
-      appUserId: complaint.filedBy?.appUserId,
-      adminEvent: isUserSender ? "complaint:chat:new" : null,
-      userEvent: isUserSender ? null : "complaint:chat:new",
-      //Socket Payload Missing Media
-      payload: {
-  complaintId: complaint._id,
-  byRole: latestMessage.byRole,
-  message: latestMessage.message || null,
-  media: latestMessage.media || [],
-  timestamp: latestMessage.timestamp
-}
+          const upload = await storageService.uploadFile(file.buffer, file.mimetype, "complaint-chat");
+          uploadedFiles.push({ publicId: upload.publicId, resourceType: upload.resourceType });
+
+          return { 
+            type: upload.type, 
+            url: upload.url, 
+            publicId: upload.publicId, 
+            resourceType: upload.resourceType 
+          };
+        })
+      );
+    }
+
+    complaint.history.push({
+      message: message?.trim() || null,
+      media,
+      by: req.user._id,
+      byRole: req.role,
+      timestamp: new Date(),
     });
-  } catch (err) {
-    console.error("Socket emit failed (complaint:chat:new):", err.message);
-  }
 
-  return complaint;
+    await complaint.save();
+    const latestMessage = complaint.history[complaint.history.length - 1];
+
+    try {
+      const isUserSender = req.role === "user";
+      await emitComplaintNotification({
+        talukaId: complaint.taluka,
+        appUserId: complaint.filedBy?.appUserId,
+        adminEvent: isUserSender ? "complaint:chat:new" : null,
+        userEvent: isUserSender ? null : "complaint:chat:new",
+        payload: {
+          complaintId: complaint._id,
+          byRole: latestMessage.byRole,
+          message: latestMessage.message || null,
+          media: latestMessage.media || [],
+          timestamp: latestMessage.timestamp
+        }
+      });
+    } catch (err) {
+      console.error("Socket emit failed:", err.message);
+    }
+    return complaint;
+  } catch (err) {
+    /* 🛡️ FAILURE CLEANUP (Transactional safety for files) */
+    console.error("📦 DB/Upload Error in Chat - triggering file cleanup hooks...");
+    await storageService.deleteMultipleFiles(uploadedFiles);
+    throw err;
+  }
 };
 
-/* ===================================================== */
 /* ================= GET COMPLAINT CHAT ================= */
-/* ===================================================== */
 export const getComplaintChatService = async (id, req) => {
-  if (!mongoose.Types.ObjectId.isValid(id)) {
-    throw new Error("Invalid complaint id");
-  }
-
-  if (req.role === "staff") {
-    throw new Error("Staff cannot access complaint chat");
-  }
+  if (req.role === "staff") throw new Error("Staff access denied to complaint chat");
 
   const complaint = await Complaint.findById(id)
-    .select("history filedBy complainer")
-    .populate({
-      path: "complainer",
-      select: "taluka"
-    })
-    .populate("history.by", "name phone appUserId adminId")
+    .populate("history.by", "name phone appUserId adminId");
 
   if (!complaint) throw new Error("Complaint not found");
 
   if (req.role === "admin") {
     const assigned = req.user.assignedTaluka || [];
-    if (assigned.length === 0) {
-      throw new Error("Not allowed to view this chat");
+    if (!assigned.some(t => t.toString() === complaint.taluka?.toString())) {
+      throw new Error("Access denied");
     }
-    const talukaId = complaint.complainer?.taluka?.toString();
-    const allowed = assigned.some(
-      (t) => t.toString() === talukaId
-    );
-    if (!allowed) {
-      throw new Error("Not allowed to view this chat");
+  } else if (req.role === "user") {
+    if (complaint.filedBy.toString() !== req.user._id.toString()) {
+      throw new Error("Access denied");
     }
   }
 
-  if (
-    req.role === "user" &&
-    complaint.filedBy.toString() !== req.user._id.toString()
-  ) {
-    throw new Error("Not allowed to view this chat");
-  }
-
-  return complaint.history.map((h) => ({
+  return complaint.history.map(h => ({
     message: h.message || null,
     media: h.media || [],
     byRole: h.byRole,
-    by: h.by
-      ? { _id: h.by._id, name: h.by.name || "Admin" }
-      : null,
+    by: h.by ? { _id: h.by._id, name: h.by.name || "System" } : null,
     timestamp: h.timestamp
   }));
 };
 
-/* ===================================================== */
 /* =============== GET RECENT COMPLAINTS ================= */
-/* ===================================================== */
 export const getRecentComplaintsService = async ({ page, limit, accessibleTalukas = null }) => {
-  const skip = (page - 1) * limit;
-
-  // Admin with no assigned taluka should see nothing
-  if (Array.isArray(accessibleTalukas) && accessibleTalukas.length === 0) {
-    return {
-      totalRecords: 0,
-      stats: {
-        total: 0,
-        open: 0,
-        "in-progress": 0,
-        resolved: 0,
-        closed: 0
-      },
-      data: []
-    };
-  }
-
   const filter = {};
-
-  // Apply taluka restriction if provided (Admin)
-  if (accessibleTalukas && accessibleTalukas.length > 0) {
-    const complainers = await Complainer.find(
-      { taluka: { $in: accessibleTalukas } },
-      { _id: 1 }
-    );
-
-    const ids = complainers.map((c) => c._id);
-
-    if (!ids.length) {
-      return {
-        totalRecords: 0,
-        stats: {
-          total: 0,
-          open: 0,
-          "in-progress": 0,
-          resolved: 0,
-          closed: 0
-        },
-        data: []
-      };
-    }
-
-    filter.complainer = { $in: ids };
+  if (Array.isArray(accessibleTalukas) && accessibleTalukas.length === 0) {
+    return { totalRecords: 0, stats: { total: 0, open: 0, "in-progress": 0, resolved: 0, closed: 0 }, data: [] };
   }
 
-  /* ================= STATS ================= */
+  if (accessibleTalukas && accessibleTalukas.length > 0) {
+    filter.taluka = { $in: accessibleTalukas };
+  }
+
   const statsAggregation = await Complaint.aggregate([
     { $match: filter },
-    {
-      $group: {
-        _id: "$status",
-        count: { $sum: 1 }
-      }
-    }
+    { $group: { _id: "$status", count: { $sum: 1 } } }
   ]);
 
-  const stats = {
-    total: 0,
-    open: 0,
-    "in-progress": 0,
-    resolved: 0,
-    closed: 0
-  };
-
-  statsAggregation.forEach((item) => {
+  const stats = { total: 0, open: 0, "in-progress": 0, resolved: 0, closed: 0 };
+  statsAggregation.forEach(item => {
     stats[item._id] = item.count;
     stats.total += item.count;
   });
 
-  /* ================= DATA ================= */
   const data = await Complaint.find(filter)
-    .sort({ createdAt: -1 }) // 🔥 recent first
-    .skip(skip)
+    .sort({ createdAt: -1 })
+    .skip((page - 1) * limit)
     .limit(limit)
     .select("complaintId subject status createdAt complainer")
     .populate({
@@ -723,9 +495,72 @@ export const getRecentComplaintsService = async ({ page, limit, accessibleTaluka
       ]
     });
 
-  return {
-    totalRecords: stats.total,
-    stats,
-    data
-  };
+  return { totalRecords: stats.total, stats, data };
+};
+
+/* ================= FORWARD TO DEPT ================== */
+export const forwardComplaintToDeptService = async (id, req) => {
+  if (!["admin", "superadmin"].includes(req.role)) {
+    throw new Error("Unauthorized forwarding");
+  }
+
+  const complaint = await Complaint.findById(id)
+    .populate("complainer", "name phone")
+    .populate("department", "name email")
+    .populate("filedBy", "appUserId");
+
+  if (!complaint) throw new Error("Complaint not found");
+  if (!complaint.department) throw new Error("This complaint has no department assigned");
+  if (!complaint.department.email) throw new Error("Department has no email address configured");
+
+  // Send the email
+  await sendComplaintForwardEmail({
+    to: complaint.department.email,
+    complaint,
+    departmentName: complaint.department.name.en // Preferred English name for email
+  });
+
+  const deptNameEn = complaint.department.name.en;
+  const deptNameMr = complaint.department.name.mr;
+
+  const chatMessage = `Your complaint has been forwarded to ${deptNameEn} for further action.\nतुमची तक्रार पुढील कार्यवाहीसाठी "${deptNameMr}" कडे पाठवण्यात आली आहे.`;
+
+  // 1. Internal Audit Log
+  complaint.history.push({
+    message: `System Audit: Forwarded to department email: ${complaint.department.email}`,
+    by: req.user._id,
+    byRole: req.role,
+    timestamp: new Date()
+  });
+
+  // 2. User-Facing Chat Message
+  complaint.history.push({
+    message: chatMessage,
+    by: req.user._id,
+    byRole: req.role,
+    timestamp: new Date()
+  });
+
+  await complaint.save();
+
+  // 3. Socket.io Notification (Real-time update for User)
+  try {
+    const latestMessage = complaint.history[complaint.history.length - 1];
+    await emitComplaintNotification({
+      talukaId: complaint.taluka,
+      appUserId: complaint.filedBy?.appUserId,
+      userEvent: "complaint:chat:new",
+      payload: {
+        complaintId: complaint._id,
+        byRole: req.role,
+        message: chatMessage,
+        media: [],
+        timestamp: latestMessage.timestamp
+      }
+    });
+  } catch (err) {
+    console.error("Socket emit failed in forwarding:", err.message);
+  }
+
+  return { message: "Forwarded successfully", email: complaint.department.email };
 };

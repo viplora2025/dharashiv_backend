@@ -9,22 +9,10 @@ import {
   sendOtpEmail,
   sendPasswordChangedEmail
 } from "../utils/email.js";
-import {
-  validatePassword,
-  validatePhone,
-  validateEmail
-} from "../utils/helpers.js";
-
 
 /* ================= REGISTER ================= */
 export const registerAdminService = async (data) => {
   const { name, phone, email, password, role, assignedTaluka } = data;
-
-  if (!role) throw new Error("Role is required");
-
-  validatePhone(phone);
-  validatePassword(password);
-  validateEmail(email);
 
   const exists = await Admin.findOne({ $or: [{ phone }, { email }] });
   if (exists) throw new Error("Admin already exists");
@@ -51,7 +39,6 @@ export const registerAdminService = async (data) => {
 
 /* ================= LOGIN ================= */
 export const loginAdminService = async ({ email, password }) => {
-  validateEmail(email);
   const admin = await Admin.findOne({ email });
   if (!admin) throw new Error("Admin not found");
 
@@ -77,7 +64,6 @@ export const loginAdminService = async ({ email, password }) => {
 
 /* ================= FORGOT PASSWORD ================= */
 export const forgotPasswordService = async (email) => {
-  validateEmail(email);
   const admin = await Admin.findOne({ email });
   if (!admin) throw new Error("Admin not found");
 
@@ -95,8 +81,6 @@ export const forgotPasswordService = async (email) => {
 
 /* ================= RESET PASSWORD ================= */
 export const resetPasswordService = async ({ email, otp, newPassword }) => {
-  validatePassword(newPassword);
-
   const admin = await Admin.findOne({ email, otp });
   if (!admin) throw new Error("Invalid OTP");
 
@@ -134,12 +118,15 @@ export const resendOtpService = async (email) => {
 
 /* ================= FETCH / UPDATE ================= */
 export const getAdminByIdService = async (id) => {
-  return Admin.findById(id).populate("assignedTaluka");
+  const admin = await Admin.findById(id).populate("assignedTaluka");
+  if (!admin) throw new Error("Admin not found");
+  return admin;
 };
 
 export const getAdminByPhoneService = async (phone) => {
-  validatePhone(phone);
-  return Admin.findOne({ phone });
+  const admin = await Admin.findOne({ phone });
+  if (!admin) throw new Error("Admin not found");
+  return admin;
 };
 
 export const getAllAdminsService = async () => {
@@ -147,26 +134,16 @@ export const getAllAdminsService = async () => {
 };
 
 export const updateAdminService = async (id, data) => {
+  const { name, email, password, role, assignedTaluka } = data;
   const update = {};
 
-  if (data.name !== undefined) update.name = data.name;
-
-  if (data.email !== undefined) {
-    validateEmail(data.email);
-    update.email = data.email;
+  if (name !== undefined) update.name = name;
+  if (email !== undefined) update.email = email;
+  if (password) {
+    update.password = await bcrypt.hash(password, 10);
   }
-
-  if (data.password) {
-    validatePassword(data.password);
-    update.password = await bcrypt.hash(data.password, 10);
-  }
-
-  if (data.phone) {
-    throw new Error("Phone number change is not allowed");
-  }
-
-  if (data.role !== undefined) update.role = data.role;
-  if (data.assignedTaluka !== undefined) update.assignedTaluka = data.assignedTaluka;
+  if (role !== undefined) update.role = role;
+  if (assignedTaluka !== undefined) update.assignedTaluka = assignedTaluka;
 
   if (Object.keys(update).length === 0) {
     throw new Error("No fields provided for update");
@@ -179,6 +156,8 @@ export const updateAdminService = async (id, data) => {
 };
 
 export const deleteAdminService = async (id) => {
-  await Admin.findByIdAndDelete(id);
+  const admin = await Admin.findById(id);
+  if (!admin) throw new Error("Admin not found");
+  await admin.deleteOne();
   return true;
 };

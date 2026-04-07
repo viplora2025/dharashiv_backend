@@ -6,7 +6,8 @@ const visitorSchema = new mongoose.Schema(
     eventId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Event",
-      required: true
+      required: true,
+      index: true
     },
 
     visitorName: {
@@ -17,19 +18,22 @@ const visitorSchema = new mongoose.Schema(
 
     phone: {
       type: String,
-      default: null
+      default: null,
+      index: true
     },
 
     village: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Village",
-      required: true
+      required: true,
+      index: true
     },
 
     taluka: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Taluka",
-      required: true
+      required: true,
+      index: true
     },
 
     issue: {
@@ -50,25 +54,27 @@ const visitorSchema = new mongoose.Schema(
     },
 
     status: {
-      type: String,
-      enum: Object.values(VisitorStatus),
-      default: VisitorStatus.REGISTERED
+      en: { type: String, default: "Registered" },
+      mr: { type: String, default: "नोंदणी केली" }
     },
     appUser: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "AppUser",
-      default: null
+      default: null,
+      index: true
     },
 
     registeredBy: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Admin",
-      default: null
+      default: null,
+      index: true
     },
 
     registeredAt: {
       type: Date,
-      default: Date.now
+      default: Date.now,
+      index: true
     }
   },
   { timestamps: true }

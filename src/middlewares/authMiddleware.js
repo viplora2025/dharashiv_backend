@@ -100,3 +100,10 @@ export const userOnly = (req, res, next) => {
   }
   next();
 };
+/* ================= USER + ADMIN + SUPERADMIN (NO STAFF) ================= */
+export const notStaff = (req, res, next) => {
+  if (req.role === "staff") {
+    return res.status(403).json({ message: "Staff access denied to this resource" });
+  }
+  next();
+};

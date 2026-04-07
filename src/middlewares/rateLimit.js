@@ -9,7 +9,14 @@ const baseOptions = {
 export const adminLoginLimiter = rateLimit({
   ...baseOptions,
   windowMs: 15 * 60 * 1000,
-  max: 5
+  max: 10
+});
+
+export const globalApiLimiter = rateLimit({
+  ...baseOptions,
+  windowMs: 15 * 60 * 1000,
+  max: 1000,
+  message: { message: "Too many requests from this IP. Please try again later." }
 });
 
 export const adminOtpLimiter = rateLimit({

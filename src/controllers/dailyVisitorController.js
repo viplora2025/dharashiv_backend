@@ -1,3 +1,5 @@
+// src/controllers/dailyVisitorController.js
+
 import {
   createDailyVisitorService,
   updateDailyVisitorService,
@@ -10,9 +12,9 @@ import {
   getDailyVisitorsByYearService
 } from "../services/dailyVisitorService.js";
 import { parsePageLimit } from "../utils/queryValidation.js";
-import { sendError, sendSuccess } from "../utils/response.js";
+import { sendSuccess } from "../utils/response.js";
 
-export const createDailyVisitor = async (req, res) => {
+export const createDailyVisitor = async (req, res, next) => {
   try {
     const doc = await createDailyVisitorService(req.body);
     sendSuccess(res, {
@@ -21,11 +23,11 @@ export const createDailyVisitor = async (req, res) => {
       data: doc
     });
   } catch (err) {
-    sendError(res, { status: 400, message: err.message });
+    next(err);
   }
 };
 
-export const updateDailyVisitor = async (req, res) => {
+export const updateDailyVisitor = async (req, res, next) => {
   try {
     const doc = await updateDailyVisitorService(
       req.params.id,
@@ -33,29 +35,29 @@ export const updateDailyVisitor = async (req, res) => {
     );
     sendSuccess(res, { message: "Daily visitor updated", data: doc });
   } catch (err) {
-    sendError(res, { status: 400, message: err.message });
+    next(err);
   }
 };
 
-export const deleteDailyVisitor = async (req, res) => {
+export const deleteDailyVisitor = async (req, res, next) => {
   try {
     await deleteDailyVisitorService(req.params.id);
     sendSuccess(res, { message: "Daily visitor deleted" });
   } catch (err) {
-    sendError(res, { status: 400, message: err.message });
+    next(err);
   }
 };
 
-export const getDailyVisitorById = async (req, res) => {
+export const getDailyVisitorById = async (req, res, next) => {
   try {
     const doc = await getDailyVisitorByIdService(req.params.id);
     sendSuccess(res, { data: doc });
   } catch (err) {
-    sendError(res, { status: 404, message: err.message });
+    next(err);
   }
 };
 
-export const getAllDailyVisitors = async (req, res) => {
+export const getAllDailyVisitors = async (req, res, next) => {
   try {
     const { page, limit } = parsePageLimit(req.query);
     const result = await getAllDailyVisitorsService(page, limit);
@@ -67,11 +69,11 @@ export const getAllDailyVisitors = async (req, res) => {
       data: result.data
     });
   } catch (err) {
-    sendError(res, { status: 500, message: err.message });
+    next(err);
   }
 };
 
-export const getDailyVisitorsByDate = async (req, res) => {
+export const getDailyVisitorsByDate = async (req, res, next) => {
   try {
     const { page, limit } = parsePageLimit(req.query);
     const result = await getDailyVisitorsByDateService(req.params.date, page, limit);
@@ -83,11 +85,11 @@ export const getDailyVisitorsByDate = async (req, res) => {
       data: result.data
     });
   } catch (err) {
-    sendError(res, { status: 400, message: err.message });
+    next(err);
   }
 };
 
-export const getDailyVisitorsByWeek = async (req, res) => {
+export const getDailyVisitorsByWeek = async (req, res, next) => {
   try {
     const { page, limit } = parsePageLimit(req.query);
     const result = await getDailyVisitorsByWeekService(req.query.date, page, limit);
@@ -99,11 +101,11 @@ export const getDailyVisitorsByWeek = async (req, res) => {
       data: result.data
     });
   } catch (err) {
-    sendError(res, { status: 400, message: err.message });
+    next(err);
   }
 };
 
-export const getDailyVisitorsByMonth = async (req, res) => {
+export const getDailyVisitorsByMonth = async (req, res, next) => {
   try {
     const { year, month } = req.params;
     const { page, limit } = parsePageLimit(req.query);
@@ -116,11 +118,11 @@ export const getDailyVisitorsByMonth = async (req, res) => {
       data: result.data
     });
   } catch (err) {
-    sendError(res, { status: 400, message: err.message });
+    next(err);
   }
 };
 
-export const getDailyVisitorsByYear = async (req, res) => {
+export const getDailyVisitorsByYear = async (req, res, next) => {
   try {
     const { year } = req.params;
     const { page, limit } = parsePageLimit(req.query);
@@ -133,6 +135,6 @@ export const getDailyVisitorsByYear = async (req, res) => {
       data: result.data
     });
   } catch (err) {
-    sendError(res, { status: 400, message: err.message });
+    next(err);
   }
 };

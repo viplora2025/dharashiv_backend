@@ -14,13 +14,6 @@ export const registerUserService = async ({
   secretQuestion,
   secretAnswer
 }) => {
-  if (!name || !phone || !password || !secretQuestion || !secretAnswer) {
-    throw new Error("All fields are required");
-  }
-
-  validatePhone(phone);
-  validatePassword(password);
-
   const existing = await AppUser.findOne({ phone });
   if (existing) {
     throw new Error("Phone already exists");
@@ -45,12 +38,6 @@ export const registerUserService = async ({
 
 /* ================= LOGIN ================= */
 export const loginUserService = async ({ phone, password }) => {
-  if (!phone || !password) {
-    throw new Error("Phone and password required");
-  }
-
-  validatePhone(phone);
-
   const user = await AppUser.findOne({ phone });
   if (!user) {
     throw new Error("User not found");
@@ -74,10 +61,6 @@ export const loginUserService = async ({ phone, password }) => {
 
 /* ================= FORGOT PASSWORD ================= */
 export const getSecretQuestionService = async ({ phone }) => {
-  if (!phone) throw new Error("Phone required");
-
-  validatePhone(phone);
-
   const user = await AppUser.findOne({ phone });
   if (!user) throw new Error("User not found");
 
@@ -89,13 +72,6 @@ export const resetPasswordService = async ({
   answer,
   newPassword
 }) => {
-  if (!phone || !answer || !newPassword) {
-    throw new Error("All fields are required");
-  }
-
-  validatePhone(phone);
-  validatePassword(newPassword);
-
   const user = await AppUser.findOne({ phone });
   if (!user) throw new Error("User not found");
 
@@ -110,20 +86,22 @@ export const resetPasswordService = async ({
 
 /* ================= PROFILE ================= */
 export const updateMyProfileService = async (userId, data) => {
-  if (data.phone) {
-    throw new Error("Phone number cannot be changed");
-  }
-
+  const { name, password } = data;
   const updateData = {};
 
-  if (data.name) updateData.name = data.name;
-
-  if (data.password) {
-    validatePassword(data.password);
-    updateData.password = await bcrypt.hash(data.password, 10);
+  if (name !== undefined) updateData.name = name;
+  if (password) {
+    validatePassword(password);
+    updateData.password = await bcrypt.hash(password, 10);
   }
 
-  return AppUser.findByIdAndUpdate(userId, updateData, { new: true });
+  if (Object.keys(updateData).length === 0) {
+    throw new Error("No fields provided for update");
+  }
+
+  const user = await AppUser.findByIdAndUpdate(userId, updateData, { new: true });
+  if (!user) throw new Error("User not found");
+  return user;
 };
 
 /* ================= ADMIN ================= */
@@ -148,16 +126,13 @@ export const getUserByPhoneService = async (phone) => {
 };
 
 export const updateUserByAdminService = async (id, data) => {
-  if (data.phone) {
-    throw new Error("Phone number change is not allowed");
-  }
-
+  const { name, password } = data;
   const update = {};
-  if (data.name !== undefined) update.name = data.name;
 
-  if (data.password) {
-    validatePassword(data.password);
-    update.password = await bcrypt.hash(data.password, 10);
+  if (name !== undefined) update.name = name;
+  if (password) {
+    validatePassword(password);
+    update.password = await bcrypt.hash(password, 10);
   }
 
   if (Object.keys(update).length === 0) {

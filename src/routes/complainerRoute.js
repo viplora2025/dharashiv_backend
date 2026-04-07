@@ -1,28 +1,75 @@
-import express from "express";
+// src/routes/complainerRoute.js
 
+import express from "express";
 import {
-    createComplainer,
-    getAllComplainers,
-    getComplainerById,
-    updateComplainer,
-    deleteComplainer,
-    getComplainersByAppUser,
-    getComplainersByUserAndTaluka,
-    getComplainersByTaluka
+  createComplainer,
+  getAllComplainers,
+  getComplainerById,
+  updateComplainer,
+  deleteComplainer,
+  getComplainersByAppUser,
+  getComplainersByUserAndTaluka,
+  getComplainersByTaluka
 } from "../controllers/complainerController.js";
-import { auth, adminOnly, userOnly } from "../middlewares/authMiddleware.js";
+import { auth, adminOnly, userOnly, staffOnly, notStaff } from "../middlewares/authMiddleware.js";
+import validate from "../middlewares/validateMiddleware.js";
+import {
+  createComplainerSchema,
+  updateComplainerSchema,
+  complainerQuerySchema
+} from "../validations/complainerValidation.js";
 
 const router = express.Router();
 
-router.post("/", auth, userOnly, createComplainer);
-router.get("/", auth, adminOnly, getAllComplainers);
+/* ================= CREATE ================= */
+router.post(
+  "/",
+  auth,
+  userOnly,
+  validate(createComplainerSchema),
+  createComplainer
+);
 
-router.get("/by-user-taluka/:userId/:talukaId", auth, getComplainersByUserAndTaluka);
-router.get("/by-taluka/:talukaId", auth, adminOnly, getComplainersByTaluka);
-router.get("/by-user/:userId", auth, getComplainersByAppUser);
+/* ================= READ (LIST) ================= */
+router.get(
+  "/",
+  auth,
+  adminOnly,
+  validate(complainerQuerySchema),
+  getAllComplainers
+);
 
-router.get("/:id", auth, getComplainerById);
-router.put("/:id", auth, updateComplainer);
-router.delete("/:id", auth, deleteComplainer);
+// Get complainers for the logged-in user
+router.get("/my", auth, userOnly, getComplainersByAppUser);
+
+// Get complainers for a specific taluka (Admin/SuperAdmin)
+router.get(
+  "/by-taluka/:talukaId",
+  auth,
+  adminOnly,
+  validate(complainerQuerySchema),
+  getComplainersByTaluka
+);
+
+// Get complainers for the logged-in user filtered by taluka
+router.get(
+  "/my/taluka/:talukaId",
+  auth,
+  userOnly,
+  getComplainersByUserAndTaluka
+);
+
+/* ================= READ / UPDATE / DELETE BY ID ================= */
+router.get("/:id", auth, notStaff, getComplainerById);
+
+router.put(
+  "/:id",
+  auth,
+  notStaff,
+  validate(updateComplainerSchema),
+  updateComplainer
+);
+
+router.delete("/:id", auth, notStaff, deleteComplainer);
 
 export default router;

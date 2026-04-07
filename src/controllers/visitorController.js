@@ -1,114 +1,65 @@
-import {
-  registerVisitorOnlineService,
-  registerVisitorOfflineService,
-  getVisitorsByEventService,
-  getVisitorsByAppUserService,
-  getVisitorByIdService,
-  updateVisitorStatusService
-} from "../services/visitorService.js";
-import { sendError, sendSuccess } from "../utils/response.js";
+// src/controllers/visitorController.js
 
-/* =========================
-   REGISTER VISITOR
-========================= */
-export const registerVisitor = async (req, res) => {
+import * as visitorService from "../services/visitorService.js";
+import { sendSuccess } from "../utils/response.js";
+
+export const registerVisitor = async (req, res, next) => {
   try {
-    let visitor;
+    const data = {
+      ...req.body,
+      appUser: req.role === "user" ? req.user._id : null,
+      registeredBy: req.role === "admin" || req.role === "superadmin" ? req.user._id : null,
+    };
 
-    // 🟢 ONLINE (AppUser)
-    if (req.role === "user") {
-      visitor = await registerVisitorOnlineService({
-        ...req.body,
-        appUser: req.user._id
-      });
-    }
-
-    // 🔵 OFFLINE (Admin)
-    else if (req.role === "admin" || req.role === "superadmin" || req.role === "staff") {
-      visitor = await registerVisitorOfflineService({
-        ...req.body,
-        registeredBy: req.user._id
-      });
-    } else {
-      throw new Error("Unauthorized role");
-    }
+    const visitor = req.role === "user" 
+      ? await visitorService.registerVisitorOnlineService(data)
+      : await visitorService.registerVisitorOfflineService(data);
 
     sendSuccess(res, {
       status: 201,
       message: "Visitor registered successfully",
       data: visitor
     });
-  } catch (error) {
-    sendError(res, { status: 400, message: error.message });
+  } catch (err) {
+    next(err);
   }
 };
 
-/* =========================
-   GET VISITORS BY EVENT
-========================= */
-export const getVisitorsByEvent = async (req, res) => {
+export const getVisitorsByEvent = async (req, res, next) => {
   try {
-    const visitors = await getVisitorsByEventService(req.params.eventId);
-
-    sendSuccess(res, {
-      count: visitors.length,
-      data: visitors
-    });
-  } catch (error) {
-    sendError(res, { status: 400, message: error.message });
+    const visitors = await visitorService.getVisitorsByEventService(req.params.eventId);
+    sendSuccess(res, { data: visitors });
+  } catch (err) {
+    next(err);
   }
 };
 
-/* =========================
-   GET VISITORS BY APP USER
-========================= */
-export const getVisitorsByAppUser = async (req, res) => {
+export const getVisitorsByAppUser = async (req, res, next) => {
   try {
-    const visitors = await getVisitorsByAppUserService(req.user._id);
-
-    sendSuccess(res, {
-      count: visitors.length,
-      data: visitors
-    });
-  } catch (error) {
-    sendError(res, { status: 400, message: error.message });
+    const visitors = await visitorService.getVisitorsByAppUserService(req.user._id);
+    sendSuccess(res, { data: visitors });
+  } catch (err) {
+    next(err);
   }
 };
 
-/* =========================
-   GET VISITOR BY ID
-========================= */
-export const getVisitorById = async (req, res) => {
+export const getVisitorById = async (req, res, next) => {
   try {
-    const visitor = await getVisitorByIdService(req.params.id);
-
+    const visitor = await visitorService.getVisitorByIdService(req.params.id);
     sendSuccess(res, { data: visitor });
-  } catch (error) {
-    sendError(res, { status: 404, message: error.message });
+  } catch (err) {
+    next(err);
   }
 };
 
-
-
-export const updateVisitorStatus = async (req, res) => {
+export const updateVisitorStatus = async (req, res, next) => {
   try {
-    // Only admin / superadmin should reach here (route protected)
-    const { status } = req.body;
-
-    if (!status) {
-      throw new Error("status is required");
-    }
-
-    const visitor = await updateVisitorStatusService(
+    const visitor = await visitorService.updateVisitorStatusService(
       req.params.id,
-      status
+      req.body.status
     );
-
-    sendSuccess(res, {
-      message: "Visitor status updated successfully",
-      data: visitor
-    });
-  } catch (error) {
-    sendError(res, { status: 400, message: error.message });
+    sendSuccess(res, { message: "Status updated successfully", data: visitor });
+  } catch (err) {
+    next(err);
   }
 };

@@ -11,28 +11,47 @@ import { generateVillageId } from "../utils/generateIds.js";
 
 /* ================= CREATE VILLAGE ================= */
 export const createVillageService = async ({ name, talukaId }) => {
-  if (!name || !name.en || !name.mr) {
-    throw new Error("Both English (en) and Marathi (mr) names are required.");
-  }
-
-  if (!talukaId) {
-    throw new Error("talukaId is required");
-  }
-
   const taluka = await Taluka.findOne({ talukaId });
   if (!taluka) {
-    throw new Error("Taluka not found with given talukaId");
+    throw new Error("Taluka not found");
   }
 
   const villageId = await generateVillageId();
 
   const village = await Village.create({
     villageId,
-    name,
+    name: {
+      en: name.en,
+      mr: name.mr
+    },
     taluka: taluka._id
   });
 
   return village;
+};
+
+/* ================= CREATE MULTIPLE VILLAGES ================= */
+export const createMultipleVillagesService = async ({ talukaId, villages }) => {
+  const taluka = await Taluka.findOne({ talukaId });
+  if (!taluka) {
+    throw new Error("Taluka not found");
+  }
+
+  const villageDocs = [];
+  for (const v of villages) {
+    const villageId = await generateVillageId();
+    villageDocs.push({
+      villageId,
+      name: {
+        en: v.en,
+        mr: v.mr
+      },
+      taluka: taluka._id
+    });
+  }
+
+  const savedVillages = await Village.insertMany(villageDocs);
+  return savedVillages;
 };
 
 /* ================= GET ALL VILLAGES ================= */
@@ -46,7 +65,7 @@ export const getAllVillagesService = async () => {
 export const getVillageByTalukaService = async (talukaId) => {
   const taluka = await Taluka.findOne({ talukaId });
   if (!taluka) {
-    throw new Error("Taluka not found with given talukaId");
+    throw new Error("Taluka not found");
   }
 
   return Village.find({ taluka: taluka._id }).populate("taluka");
@@ -55,7 +74,7 @@ export const getVillageByTalukaService = async (talukaId) => {
 /* ================= GET VILLAGES BY TALUKA (OBJECT ID) ================= */
 export const getVillageByTalukaObjectIdService = async (talukaObjectId) => {
   if (!mongoose.Types.ObjectId.isValid(talukaObjectId)) {
-    throw new Error("Invalid Taluka ObjectId");
+    throw new Error("Invalid Taluka ID");
   }
 
   const villages = await Village.find({
@@ -71,10 +90,6 @@ export const getVillageByTalukaObjectIdService = async (talukaObjectId) => {
 
 /* ================= UPDATE VILLAGE ================= */
 export const updateVillageService = async (villageId, name) => {
-  if (!name || !name.en || !name.mr) {
-    throw new Error("English (en) and Marathi (mr) names are required.");
-  }
-
   const updated = await Village.findOneAndUpdate(
     { villageId },
     { name },
@@ -137,47 +152,4 @@ export const resetVillageCounterService = async () => {
   );
 
   return true;
-};
-
-
-// src/services/villageService.js
-
-export const createMultipleVillagesService = async ({ talukaId, villages }) => {
-  if (!talukaId) {
-    throw new Error("talukaId is required");
-  }
-
-  if (!Array.isArray(villages) || villages.length === 0) {
-    throw new Error("Villages array is required");
-  }
-
-  // Find taluka by string ID
-  const taluka = await Taluka.findOne({ talukaId });
-  if (!taluka) {
-    throw new Error("Taluka not found with given talukaId");
-  }
-
-  const villageDocs = [];
-
-  for (const v of villages) {
-    if (!v.en || !v.mr) {
-      throw new Error("Each village must have both en and mr names");
-    }
-
-    const villageId = await generateVillageId();
-
-    villageDocs.push({
-      villageId,
-      name: {
-        en: v.en,
-        mr: v.mr
-      },
-      taluka: taluka._id   // ✅ ObjectId (model ke hisaab se)
-    });
-  }
-
-  // Single DB call (FAST)
-  const savedVillages = await Village.insertMany(villageDocs);
-
-  return savedVillages;
 };

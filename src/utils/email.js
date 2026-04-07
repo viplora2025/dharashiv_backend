@@ -151,4 +151,48 @@ export const sendPasswordChangedEmail = async (to) => {
   });
 };
 
+/* ================= COMPLAINT FORWARDING ================= */
+export const sendComplaintForwardEmail = async ({ to, complaint, departmentName }) => {
+  const mediaHtml = complaint.media && complaint.media.length > 0
+    ? `<h4>Attachments:</h4><ul>${complaint.media.map(m => `<li><a href="${m.url}" target="_blank">View ${m.type}</a></li>`).join("")}</ul>`
+    : "";
+
+  const voiceHtml = complaint.voiceNote?.url
+    ? `<h4>Voice Note:</h4><p><a href="${complaint.voiceNote.url}" target="_blank">🔊 Listen to Voice Note</a></p>`
+    : "";
+
+  const html = baseTemplate(
+    "New Complaint Assigned",
+    `
+      <h3 style="margin-top:0;color:#0f172a;">Complaint Forwarded to ${departmentName}</h3>
+      <p>Hello,</p>
+      <p>A new complaint has been forwarded to your department for necessary action.</p>
+
+      <div style="background:#f8fafc;padding:16px;border-radius:6px;border-left:4px solid #0f172a;margin:16px 0;">
+        <p style="margin:4px 0;"><b>Complaint ID:</b> ${complaint.complaintId}</p>
+        <p style="margin:4px 0;"><b>Complainer:</b> ${complaint.complainer?.name || "N/A"}</p>
+        <p style="margin:4px 0;"><b>Date:</b> ${new Date(complaint.createdAt).toLocaleDateString()}</p>
+      </div>
+
+      <h4>Details:</h4>
+      <p><b>Subject:</b> ${complaint.subject || "N/A"}</p>
+      <p><b>Description:</b> ${complaint.description || "N/A"}</p>
+
+      ${voiceHtml}
+      ${mediaHtml}
+
+      <hr style="border:0;border-top:1px solid #e2e8f0;margin:24px 0;" />
+      <p style="font-size:13px;color:#64748b;">
+        Please review the details and take the necessary steps. This is a system-generated email.
+      </p>
+    `
+  );
+
+  return sendEmail({
+    to,
+    subject: `Forwarded Complaint: ${complaint.complaintId}`,
+    html
+  });
+};
+
 export default transporter;

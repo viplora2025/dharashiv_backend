@@ -12,13 +12,14 @@ const eventSchema = new mongoose.Schema(
     },
 
     title: {
-      type: String,
-      default: "Janta Darbar"
+      en: { type: String, default: "Janta Darbar" },
+      mr: { type: String, default: "जनता दरबार" }
     },
 
     eventDate: {
       type: Date,
-      required: true
+      required: true,
+      index: true
     },
 
     startTime: {
@@ -32,9 +33,8 @@ const eventSchema = new mongoose.Schema(
     },
 
     address: {
-      type: String,
-      trim: true,
-      default: null
+      en: { type: String, trim: true, default: null },
+      mr: { type: String, trim: true, default: null }
     },
 
     maxTokens: {
@@ -49,14 +49,13 @@ const eventSchema = new mongoose.Schema(
     },
 
     status: {
-      type: String,
-      enum: Object.values(EventStatus),
-      default: EventStatus.ANNOUNCED
+      en: { type: String, default: "Announced" },
+      mr: { type: String, default: "घोषित" }
     },
 
     meetingSummary: {
-      type: String,
-      default: null
+      en: { type: String, default: null },
+      mr: { type: String, default: null }
     },
 
     totalVisitorsAttended: {
@@ -67,7 +66,8 @@ const eventSchema = new mongoose.Schema(
     createdBy: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Admin",
-      required: true
+      required: true,
+      index: true
     }
   },
   { timestamps: true }

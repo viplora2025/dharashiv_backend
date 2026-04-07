@@ -1,231 +1,151 @@
+// src/services/eventService.js
+
 import Event from "../models/eventModel.js";
 import { generateEventId } from "../utils/generateIds.js";
-import mongoose from "mongoose";
 import { io } from "../server.js";
+import { EventStatus } from "../config/constants.js";
+
+/* ================= CREATE EVENT ================= */
 export const createEventService = async (data) => {
-  try {
-    const {
-      title, // Add title
-      eventDate,
+  const {
+    title,
+    eventDate,
+    startTime,
+    endTime,
+    address,
+    maxTokens,
+    createdBy
+  } = data;
+
+  if (!createdBy) {
+    throw new Error("Unauthorized: Admin not found");
+  }
+
+  const eventId = await generateEventId();
+
+    const event = await Event.create({
+      eventId,
+      title,
+      eventDate: new Date(eventDate),
       startTime,
       endTime,
       address,
-      maxTokens,
-      createdBy
-    } = data;
-
-    /* ================= VALIDATION ================= */
-
-    if (!createdBy) {
-      throw new Error("Unauthorized: Admin not found in token");
-    }
-
-    if (!eventDate) {
-      throw new Error("eventDate is required");
-    }
-
-    if (!startTime) {
-      throw new Error("startTime is required");
-    }
-
-    if (!endTime) {
-      throw new Error("endTime is required");
-    }
-
-    /* ================= CREATE EVENT ================= */
-
-    const eventId = await generateEventId();
-
-    const event = await Event.create({
-      eventId,                // auto-generated (EVT000001)
-      title: title || "Janta Darbar", // Default if not provided
-      eventDate,
-      startTime,
-      endTime,
-      address: address || null,
       maxTokens: maxTokens || 100,
-      createdBy               // <-- ObjectId from req.user._id
+      createdBy
     });
 
-    // Event create -> notify all connected app users
-    io.to("users").emit("event:new", {
-      eventId: event._id,
-      title: event.title,
-      eventDate: event.eventDate,
-      startTime: event.startTime,
-      endTime: event.endTime,
-      status: event.status
-    });
+  // Notify all connected users
+  io.to("users").emit("event:new", {
+    eventId: event._id,
+    title: {
+      en: event.title.en,
+      mr: event.title.mr
+    },
+    eventDate: event.eventDate,
+    startTime: event.startTime,
+    endTime: event.endTime,
+    status: {
+      en: event.status.en,
+      mr: event.status.mr
+    }
+  });
 
-    return event;
-
-  } catch (error) {
-    // ❗ Service always throws, controller handles response
-    throw error;
-  }
+  return event;
 };
 
-
-/* =========================
-   UPDATE EVENT
-========================= */
+/* ================= UPDATE EVENT ================= */
 export const updateEventService = async (id, data) => {
-  try {
-    if (!mongoose.Types.ObjectId.isValid(id)) {
-      throw new Error("Invalid event id");
+  const allowedFields = [
+    "title",
+    "eventDate",
+    "startTime",
+    "endTime",
+    "address",
+    "maxTokens",
+    "status",
+    "meetingSummary"
+  ];
+
+  const updates = {};
+  allowedFields.forEach((field) => {
+    if (data[field] !== undefined) {
+      updates[field] = data[field];
     }
+  });
 
-    const allowedFields = [
-      "title",
-      "eventDate",
-      "startTime",
-      "endTime",
-      "address",
-      "maxTokens",
-      "status",
-      "meetingSummary"
-    ];
-
-    const updates = {};
-    allowedFields.forEach((field) => {
-      if (data[field] !== undefined) {
-        updates[field] = data[field];
-      }
-    });
-
-    if (Object.keys(updates).length === 0) {
-      throw new Error("No valid fields provided for update");
-    }
-
-    if (updates.eventDate !== undefined) {
-      const parsedDate = new Date(updates.eventDate);
-      if (Number.isNaN(parsedDate.getTime())) {
-        throw new Error("Invalid eventDate");
-      }
-      updates.eventDate = parsedDate;
-    }
-
-    if (updates.maxTokens !== undefined) {
-      if (!Number.isInteger(Number(updates.maxTokens)) || Number(updates.maxTokens) < 1) {
-        throw new Error("maxTokens must be a positive integer");
-      }
-      updates.maxTokens = Number(updates.maxTokens);
-    }
-
-    const event = await Event.findByIdAndUpdate(
-      id,
-      updates,
-      { new: true, runValidators: true }
-    );
-
-    if (!event) {
-      throw new Error("Event not found");
-    }
-
-    return event;
-  } catch (error) {
-    throw error;
+  if (Object.keys(updates).length === 0) {
+    throw new Error("No fields provided for update");
   }
+
+  if (updates.eventDate) {
+    updates.eventDate = new Date(updates.eventDate);
+  }
+
+  const event = await Event.findByIdAndUpdate(id, updates, {
+    new: true,
+    runValidators: true
+  });
+
+  if (!event) {
+    throw new Error("Event not found");
+  }
+
+  return event;
 };
 
-/* =========================
-   UPDATE EVENT STATUS
-========================= */
-import { EventStatus } from "../config/constants.js";
-
-/* =========================
-   UPDATE EVENT STATUS
-========================= */
+/* ================= UPDATE EVENT STATUS ================= */
 export const updateEventStatusService = async (id, status) => {
-  try {
-    const allowedStatus = Object.values(EventStatus);
+  const event = await Event.findByIdAndUpdate(
+    id,
+    { status },
+    { new: true, runValidators: true }
+  );
 
-    if (!allowedStatus.includes(status)) {
-      throw new Error("Invalid event status");
-    }
-
-    if (!mongoose.Types.ObjectId.isValid(id)) {
-      throw new Error("Invalid event id");
-    }
-
-    const event = await Event.findByIdAndUpdate(
-      id,
-      { status },
-      { new: true }
-    );
-
-    if (!event) {
-      throw new Error("Event not found");
-    }
-
-    return event;
-  } catch (error) {
-    throw error;
+  if (!event) {
+    throw new Error("Event not found");
   }
+
+  // Notify all connected users
+  io.to("users").emit("event:status:updated", {
+    eventId: event._id,
+    status: {
+      en: event.status.en,
+      mr: event.status.mr
+    }
+  });
+
+  return event;
 };
 
-/* =========================
-   GET ALL EVENTS
-========================= */
+/* ================= GET ALL EVENTS ================= */
 export const getAllEventsService = async () => {
-  try {
-    return await Event.find().sort({ eventDate: -1 });
-  } catch (error) {
-    throw error;
-  }
+  return await Event.find().sort({ eventDate: -1 });
 };
 
-/* =========================
-   GET EVENT BY ID
-========================= */
+/* ================= GET EVENT BY ID ================= */
 export const getEventByIdService = async (id) => {
-  try {
-    if (!mongoose.Types.ObjectId.isValid(id)) {
-      throw new Error("Invalid event id");
-    }
-
-    const event = await Event.findById(id);
-
-    if (!event) {
-      throw new Error("Event not found");
-    }
-
-    return event;
-  } catch (error) {
-    throw error;
+  const event = await Event.findById(id);
+  if (!event) {
+    throw new Error("Event not found");
   }
+  return event;
 };
 
-/* =========================
-   DELETE EVENT
-========================= */
+/* ================= DELETE EVENT ================= */
 export const deleteEventService = async (id) => {
-  try {
-    if (!mongoose.Types.ObjectId.isValid(id)) {
-      throw new Error("Invalid event id");
-    }
-
-    const event = await Event.findByIdAndDelete(id);
-
-    if (!event) {
-      throw new Error("Event not found");
-    }
-
-    return true;
-  } catch (error) {
-    throw error;
+  const event = await Event.findByIdAndDelete(id);
+  if (!event) {
+    throw new Error("Event not found");
   }
+  return true;
 };
 
-
-
+/* ================= GET LIMITED EVENTS (Dashboard) ================= */
 export const getLimitedEventsService = async () => {
   const now = new Date();
 
   // Ongoing
-  const ongoing = await Event.find({
-    status: "Ongoing"
-  })
+  const ongoing = await Event.find({ status: "Ongoing" })
     .sort({ eventDate: -1 })
     .limit(1);
 
@@ -237,39 +157,32 @@ export const getLimitedEventsService = async () => {
     .sort({ eventDate: 1 })
     .limit(2);
 
-  // Past (MOST RECENT first)
-  const past = await Event.find({
-    eventDate: { $lt: now }
-  })
+  // Past (most recent first)
+  const past = await Event.find({ eventDate: { $lt: now } })
     .sort({ eventDate: -1 })
-    .limit(3); // 🔥 upto 3 recent past
+    .limit(3);
 
   let result = [];
 
   if (ongoing.length) {
     result.push(ongoing[0]);
-
-    if (future.length) {
-      result.push(future[0]);
-    }
-
-    // fill remaining from past
+    if (future.length) result.push(future[0]);
     const remaining = 3 - result.length;
     if (remaining > 0 && past.length) {
       result.push(...past.slice(0, remaining));
     }
   } else {
+    // No ongoing event
     if (future.length >= 2) {
       result.push(future[0], future[1]);
       if (past.length) result.push(past[0]);
     } else if (future.length === 1) {
       result.push(future[0]);
-      result.push(...past.slice(0, 2)); // 🔥 2 recent past
+      result.push(...past.slice(0, 2));
     } else {
-      result.push(...past.slice(0, 3)); // 🔥 3 recent past
+      result.push(...past.slice(0, 3));
     }
   }
 
   return result.slice(0, 3);
 };
-

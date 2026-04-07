@@ -71,14 +71,12 @@ const socketAuthMiddleware = async (socket, next) => {
       // room join (admin specific)
       socket.join(`admin:${admin.adminId}`);
 
-      /**
-       * OPTIONAL (future):
-       * Agar chaaho to taluka rooms bhi join kara sakte ho
-       *
-       * admin.assignedTaluka.forEach(talukaId => {
-       *   socket.join(`taluka:${talukaId.toString()}`);
-       * });
-       */
+      // 🏘️ Join Taluka Rooms (for efficient broadcasting)
+      if (Array.isArray(admin.assignedTaluka)) {
+        admin.assignedTaluka.forEach((talukaId) => {
+          socket.join(`taluka:${talukaId.toString()}`);
+        });
+      }
     }
 
     // ================= INVALID ROLE =================

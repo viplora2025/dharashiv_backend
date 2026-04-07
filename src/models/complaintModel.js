@@ -13,17 +13,27 @@ const complaintSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       ref: "AppUser",
       required: true,
+      index: true,
     },
 
     complainer: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Complainer",
       required: true,
+      index: true,
     },
 
     department: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: "Department", 
+      ref: "Department",
+      index: true,
+    },
+
+    taluka: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Taluka",
+      index: true,
+      required: true,
     },
 
     specification: {
@@ -48,6 +58,8 @@ const complaintSchema = new mongoose.Schema(
       url: { type: String },
       format: { type: String },   // ex: audio/webm, audio/mpeg
       duration: { type: Number }, // seconds (optional)
+      publicId: { type: String },
+      resourceType: { type: String, default: "video" }
     },
 
     /* 📎 Complaint media (initial attachments) */
@@ -60,6 +72,13 @@ const complaintSchema = new mongoose.Schema(
         url: {
           type: String,
         },
+        publicId: {
+          type: String,
+        },
+        resourceType: {
+          type: String,
+          default: "image"
+        }
       },
     ],
 
@@ -67,6 +86,7 @@ const complaintSchema = new mongoose.Schema(
       type: String,
       enum: ["open", "in-progress", "resolved", "closed"],
       default: "open",
+      index: true,
     },
 
     /* ================= CHAT / HISTORY ================= */
@@ -86,6 +106,13 @@ const complaintSchema = new mongoose.Schema(
             url: {
               type: String,
             },
+            publicId: {
+              type: String,
+            },
+            resourceType: {
+              type: String,
+              default: "image"
+            }
           },
         ],
 

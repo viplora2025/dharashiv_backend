@@ -1,6 +1,7 @@
-import mongoose from "mongoose";
+// src/services/announcementService.js
+
 import Announcement from "../models/announcementModel.js";
-import cloudinary from "../config/cloudinary.js";
+import { storageService } from "../services/storageService.js";
 import { generateAnnouncementId } from "../utils/announcementIds.js";
 import { io } from "../server.js";
 import { validateFileSignature } from "../utils/fileSignature.js";
@@ -17,23 +18,38 @@ const uploadImageIfPresent = async (file) => {
     throw new Error("File signature mismatch / corrupted file");
   }
 
-  const upload = await cloudinary.uploader.upload(
-    `data:${file.mimetype};base64,${file.buffer.toString("base64")}`,
-    { folder: "announcements" }
+  const uploadResult = await storageService.uploadFile(
+    file.buffer,
+    file.mimetype,
+    "announcements"
   );
-
-  return upload.secure_url;
+  return {
+    url: uploadResult.url,
+    publicId: uploadResult.publicId
+  };
 };
 
 const emitAnnouncementPublished = (doc) => {
   io.to("users").emit("announcement:published", {
     announcementId: doc._id,
-    title: doc.title,
-    message: doc.message,
+    title: {
+      en: doc.title.en,
+      mr: doc.title.mr
+    },
+    message: {
+      en: doc.message.en,
+      mr: doc.message.mr
+    },
     eventDate: doc.eventDate,
     eventTime: doc.eventTime,
-    location: doc.location,
-    type: doc.type,
+    location: {
+      en: doc.location.en,
+      mr: doc.location.mr
+    },
+    type: {
+      en: doc.type.en,
+      mr: doc.type.mr
+    },
     status: doc.status
   });
 };
@@ -49,102 +65,123 @@ export const createAnnouncementService = async (req) => {
     status
   } = req.body;
 
-  if (!req.user?._id) {
-    throw new Error("Unauthorized");
+  let uploadedFile = null;
+  try {
+    const uploadResult = await uploadImageIfPresent(req.file);
+    if (uploadResult) {
+      uploadedFile = uploadResult;
+    }
+
+    const announcementId = await generateAnnouncementId();
+
+    const doc = await Announcement.create({
+      announcementId,
+      title: {
+        en: title.en,
+        mr: title.mr
+      },
+      message: {
+        en: message.en,
+        mr: message.mr
+      },
+      eventDate: eventDate ? new Date(eventDate) : undefined,
+      eventTime,
+      location: {
+        en: location.en,
+        mr: location.mr
+      },
+      type: {
+        en: type.en,
+        mr: type.mr
+      },
+      status: status || "Published",
+      imageUrl: uploadedFile?.url || null,
+      imagePublicId: uploadedFile?.publicId || null,
+      createdBy: req.user._id
+    });
+
+    // Notify only if announcement is published on create
+    if (doc.status === "Published") {
+      emitAnnouncementPublished(doc);
+    }
+
+    return doc;
+  } catch (err) {
+    // 🛡️ Cleanup zombie image if DB write fails
+    if (uploadedFile?.publicId) {
+      console.log("📦 Cleaning up failed announcement creation image...");
+      await storageService.deleteFile(uploadedFile.publicId);
+    }
+    throw err;
   }
-
-  if (!title || !message || !eventDate || !eventTime || !location || !type) {
-    throw new Error("Required fields missing");
-  }
-
-  const parsedDate = new Date(eventDate);
-  if (Number.isNaN(parsedDate.getTime())) {
-    throw new Error("Invalid eventDate");
-  }
-
-  const imageUrl = await uploadImageIfPresent(req.file);
-  const announcementId = await generateAnnouncementId();
-
-  const doc = await Announcement.create({
-    announcementId,
-    title,
-    message,
-    eventDate: parsedDate,
-    eventTime,
-    location,
-    type,
-    status: status || "Published",
-    imageUrl,
-    createdBy: req.user._id
-  });
-
-  // Notify only if announcement is published on create
-  if (doc.status === "Published") {
-    emitAnnouncementPublished(doc);
-  }
-
-  return doc;
 };
 
 export const updateAnnouncementService = async (id, req) => {
-  if (!mongoose.Types.ObjectId.isValid(id)) {
-    throw new Error("Invalid announcement id");
-  }
-
   const existing = await Announcement.findById(id);
   if (!existing) {
     throw new Error("Announcement not found");
   }
 
   const oldStatus = existing.status;
-  const updates = { ...req.body };
-  delete updates.announcementId;
-  delete updates.createdBy;
+  const oldImagePublicId = existing.imagePublicId;
+  
+  const { title, message, eventDate, eventTime, location, type, status } = req.body;
+  
+  const updates = {};
+  if (title !== undefined) updates.title = title;
+  if (message !== undefined) updates.message = message;
+  if (eventDate !== undefined) updates.eventDate = eventDate ? new Date(eventDate) : undefined;
+  if (eventTime !== undefined) updates.eventTime = eventTime;
+  if (location !== undefined) updates.location = location;
+  if (type !== undefined) updates.type = type;
+  if (status !== undefined) updates.status = status;
 
-  if (updates.eventDate) {
-    const parsedDate = new Date(updates.eventDate);
-    if (Number.isNaN(parsedDate.getTime())) {
-      throw new Error("Invalid eventDate");
+  let newUploadedFile = null;
+  try {
+    const uploadResult = await uploadImageIfPresent(req.file);
+    if (uploadResult) {
+      newUploadedFile = uploadResult;
+      updates.imageUrl = newUploadedFile.url;
+      updates.imagePublicId = newUploadedFile.publicId;
     }
-    updates.eventDate = parsedDate;
+
+    const doc = await Announcement.findByIdAndUpdate(id, updates, {
+      new: true,
+      runValidators: true
+    });
+
+    // 🛡️ Cleanup OLD image if NEW one succeeded
+    if (newUploadedFile && oldImagePublicId) {
+      console.log("📦 Cleaning up old announcement image after successful update...");
+      await storageService.deleteFile(oldImagePublicId);
+    }
+
+    // Notify only on Draft -> Published transition
+    if (oldStatus === "Draft" && doc.status === "Published") {
+      emitAnnouncementPublished(doc);
+    }
+
+    return doc;
+  } catch (err) {
+    // 🛡️ Cleanup NEW image if DB write fails
+    if (newUploadedFile?.publicId) {
+      console.log("📦 Cleaning up failed announcement update image...");
+      await storageService.deleteFile(newUploadedFile.publicId);
+    }
+    throw err;
   }
-
-  const imageUrl = await uploadImageIfPresent(req.file);
-  if (imageUrl) {
-    updates.imageUrl = imageUrl;
-  }
-
-  const doc = await Announcement.findByIdAndUpdate(id, updates, {
-    new: true,
-    runValidators: true
-  });
-
-  // Notify only on Draft -> Published transition
-  if (oldStatus === "Draft" && doc.status === "Published") {
-    emitAnnouncementPublished(doc);
-  }
-
-  return doc;
 };
 
 export const deleteAnnouncementService = async (id) => {
-  if (!mongoose.Types.ObjectId.isValid(id)) {
-    throw new Error("Invalid announcement id");
-  }
-
-  const doc = await Announcement.findByIdAndDelete(id);
+  const doc = await Announcement.findById(id);
   if (!doc) {
     throw new Error("Announcement not found");
   }
-
+  await doc.deleteOne();
   return true;
 };
 
 export const getAnnouncementByIdService = async (id, req) => {
-  if (!mongoose.Types.ObjectId.isValid(id)) {
-    throw new Error("Invalid announcement id");
-  }
-
   const doc = await Announcement.findById(id);
   if (!doc) {
     throw new Error("Announcement not found");

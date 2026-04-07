@@ -1,135 +1,80 @@
-import {
-  createDepartmentService,
-  getAllDepartmentsService,
-  getDepartmentByIdService,
-  updateDepartmentService,
-  deleteDepartmentService,
-  resetDepartmentCounterService,
-  bulkCreateDepartmentsService
-} from "../services/departmentService.js";
-import { sendError, sendSuccess } from "../utils/response.js";
+// src/controllers/departmentController.js
 
-// ==========================
-// Create Department
-// ==========================
-export const createDepartment = async (req, res) => {
+import * as departmentService from "../services/departmentService.js";
+import { sendSuccess } from "../utils/response.js";
+
+export const createDepartment = async (req, res, next) => {
   try {
-    const dept = await createDepartmentService(req.body);
+    const dept = await departmentService.createDepartmentService(req.body);
     sendSuccess(res, {
       status: 201,
       message: "Department created successfully",
       data: dept
     });
   } catch (err) {
-    sendError(res, { status: 400, message: err.message });
+    next(err);
   }
 };
 
-// ==========================
-// Get All Departments
-// ==========================
-export const getAllDepartments = async (req, res) => {
+export const getAllDepartments = async (req, res, next) => {
   try {
-    const depts = await getAllDepartmentsService();
-    sendSuccess(res, {
-      status: 200,
-      message: "Departments fetched successfully",
-      data: depts
-    });
+    const depts = await departmentService.getAllDepartmentsService();
+    sendSuccess(res, { data: depts });
   } catch (err) {
-    sendError(res, { status: 500, message: err.message });
+    next(err);
   }
 };
 
-// ==========================
-// Get Department by deptId
-// ==========================
-export const getDepartmentById = async (req, res) => {
+export const getDepartmentById = async (req, res, next) => {
   try {
-    const dept = await getDepartmentByIdService(req.params.deptId);
-    sendSuccess(res, {
-      status: 200,
-      message: "Department fetched successfully",
-      data: dept
-    });
+    const dept = await departmentService.getDepartmentByIdService(req.params.id);
+    sendSuccess(res, { data: dept });
   } catch (err) {
-    sendError(res, { status: 404, message: err.message });
+    next(err);
   }
 };
 
-// ==========================
-// Update Department
-// ==========================
-export const updateDepartment = async (req, res) => {
+export const updateDepartment = async (req, res, next) => {
   try {
-    const updated = await updateDepartmentService(
-      req.params.deptId,
+    const dept = await departmentService.updateDepartmentService(
+      req.params.id,
       req.body
     );
-
-    sendSuccess(res, {
-      status: 200,
-      message: "Department updated successfully",
-      data: updated
-    });
+    sendSuccess(res, { message: "Department updated successfully", data: dept });
   } catch (err) {
-    sendError(res, { status: 400, message: err.message });
+    next(err);
   }
 };
 
-// ==========================
-// Delete Department
-// ==========================
-export const deleteDepartment = async (req, res) => {
+export const deleteDepartment = async (req, res, next) => {
   try {
-    await deleteDepartmentService(req.params.deptId);
-    sendSuccess(res, {
-      status: 200,
-      message: "Department deleted successfully"
-    });
+    await departmentService.deleteDepartmentService(req.params.id);
+    sendSuccess(res, { message: "Department deleted successfully" });
   } catch (err) {
-    sendError(res, { status: 404, message: err.message });
+    next(err);
   }
 };
 
-// ==========================
-// Reset Department Counter
-// ==========================
-export const resetDepartmentCounter = async (req, res) => {
+export const resetDepartmentCounter = async (req, res, next) => {
   try {
-    await resetDepartmentCounterService();
-    sendSuccess(res, {
-      status: 200,
-      message: "Department ID counter reset successfully"
-    });
+    await departmentService.resetDepartmentCounterService();
+    sendSuccess(res, { message: "Department counter reset successfully" });
   } catch (err) {
-    sendError(res, { status: 500, message: err.message });
+    next(err);
   }
 };
 
-
-
-export const bulkCreateDepartments = async (req, res) => {
+export const bulkCreateDepartments = async (req, res, next) => {
   try {
-    const { departments } = req.body;
-
-    const result = await bulkCreateDepartmentsService(departments);
-
+    const result = await departmentService.bulkCreateDepartmentsService(
+      req.body.departments
+    );
     sendSuccess(res, {
       status: 201,
-      message: "Bulk department insert completed",
-      summary: {
-        total: result.total,
-        inserted: result.successCount,
-        failed: result.failedCount
-      },
-      data: result
+      message: "Bulk creation completed",
+      ...result
     });
-
   } catch (err) {
-    sendError(res, { status: 400, message: err.message });
+    next(err);
   }
 };
-
-
-

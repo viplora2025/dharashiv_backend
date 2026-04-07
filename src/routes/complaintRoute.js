@@ -1,27 +1,33 @@
-import express from "express";
+// src/routes/complaintRoute.js
 
+import express from "express";
 import {
   createComplaint,
   getAllComplaints,
   getComplaintById,
   updateComplaintStatus,
   trackComplaint,
-  getMyComplaints,
+  getComplaintsByUser,
   getComplaintsByComplainer,
   getComplaintChat,
   addChatMessage,
-  getRecentComplaints
+  getRecentComplaints,
+  forwardToDepartment
 } from "../controllers/complaintController.js";
-
 import upload from "../middlewares/uploadMiddleware.js";
-import { auth, adminOnly, userOnly } from "../middlewares/authMiddleware.js";
+import { auth, adminOnly, userOnly, staffOnly, notStaff } from "../middlewares/authMiddleware.js";
 import { complaintCreateLimiter } from "../middlewares/rateLimit.js";
+import validate from "../middlewares/validateMiddleware.js";
+import {
+  createComplaintSchema,
+  updateStatusSchema,
+  addChatSchema,
+  filterComplaintSchema
+} from "../validations/complaintValidation.js";
 
 const router = express.Router();
 
-/* ===================================================== */
-/* ================= CREATE COMPLAINT ================== */
-/* ===================================================== */
+/* ================= CREATE COMPLAINT ================= */
 router.post(
   "/",
   complaintCreateLimiter,
@@ -31,34 +37,53 @@ router.post(
     { name: "voiceNote", maxCount: 1 },
     { name: "attachments", maxCount: 10 }
   ]),
+  validate(createComplaintSchema),
   createComplaint
 );
 
-/* ===================================================== */
 /* ================= ADMIN / SUPERADMIN ================= */
-/* ===================================================== */
-router.get("/", auth, adminOnly, getAllComplaints);
-router.put("/:id/status", auth, adminOnly, updateComplaintStatus);
+router.get(
+  "/", 
+  auth, 
+  adminOnly, 
+  validate(filterComplaintSchema), 
+  getAllComplaints
+);
+
+router.put(
+  "/:id/status", 
+  auth, 
+  adminOnly, 
+  validate(updateStatusSchema), 
+  updateComplaintStatus
+);
+
 router.get("/recent/list", auth, adminOnly, getRecentComplaints);
 
-/* ===================================================== */
-/* ================= USER ROUTES ======================= */
-/* ===================================================== */
-router.get("/my", auth, getMyComplaints);
-router.get("/by-complainer/:complainerId", auth, getComplaintsByComplainer);
-router.get("/:id", auth, getComplaintById);
+router.post("/:id/forward", auth, adminOnly, forwardToDepartment);
 
-/* ===================================================== */
-/* ================= CHAT ============================== */
-/* ===================================================== */
-router.post("/:id/chat", auth, upload.array("media", 5), addChatMessage);
+/* ================= USER / ADMIN ONLY ROUTES ================= */
+// Staff cannot view or manage any complaint content
 
-router.get("/:id/chat", auth, getComplaintChat);
+router.get("/my", auth, userOnly, getComplaintsByUser);
 
-/* ===================================================== */
+router.get("/by-complainer/:complainerId", auth, notStaff, getComplaintsByComplainer);
+
+router.get("/:id", auth, notStaff, getComplaintById);
+
+/* ================= CHAT (USER / ADMIN ONLY) ================= */
+router.post(
+  "/:id/chat", 
+  auth, 
+  notStaff,
+  upload.array("media", 5), 
+  validate(addChatSchema),
+  addChatMessage
+);
+
+router.get("/:id/chat", auth, notStaff, getComplaintChat);
+
 /* ================= PUBLIC TRACKING =================== */
-/* ===================================================== */
-/* MUST be AFTER other routes to avoid conflict */
 router.get("/track/:complaintId", trackComplaint);
 
 export default router;

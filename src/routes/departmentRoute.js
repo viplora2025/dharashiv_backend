@@ -1,5 +1,6 @@
-import express from "express";
+// src/routes/departmentRoute.js
 
+import express from "express";
 import {
   createDepartment,
   getAllDepartments,
@@ -9,26 +10,53 @@ import {
   resetDepartmentCounter,
   bulkCreateDepartments
 } from "../controllers/departmentController.js";
-
-import { auth, adminOnly,superAdminOnly } from "../middlewares/authMiddleware.js";
+import { auth, superAdminOnly } from "../middlewares/authMiddleware.js";
+import validate from "../middlewares/validateMiddleware.js";
+import {
+  createDepartmentSchema,
+  updateDepartmentSchema,
+  bulkDeptSchema
+} from "../validations/masterValidation.js";
 
 const router = express.Router();
 
-router.post("/create", auth, superAdminOnly, createDepartment);
+// Create Department
+router.post(
+  "/create",
+  auth,
+  superAdminOnly,
+  validate(createDepartmentSchema),
+  createDepartment
+);
+
+// Bulk Create
+router.post(
+  "/bulk",
+  auth,
+  superAdminOnly,
+  validate(bulkDeptSchema),
+  bulkCreateDepartments
+);
 
 // Get All
-router.get("/all",auth ,getAllDepartments);
+router.get("/all", auth, getAllDepartments);
 
 // Get by deptId
-router.get("/:deptId", auth, getDepartmentById);
+router.get("/:id", auth, getDepartmentById);
 
-router.put("/update/:deptId", auth, superAdminOnly, updateDepartment);
+// Update
+router.put(
+  "/update/:id",
+  auth,
+  superAdminOnly,
+  validate(updateDepartmentSchema),
+  updateDepartment
+);
 
-router.delete("/delete/:deptId", auth, superAdminOnly, deleteDepartment);
+// Delete
+router.delete("/delete/:id", auth, superAdminOnly, deleteDepartment);
 
 // Reset Counter
 router.post("/reset-counter", auth, superAdminOnly, resetDepartmentCounter);
-
-router.post("/bulk", auth, superAdminOnly, bulkCreateDepartments);
 
 export default router;

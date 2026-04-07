@@ -1,7 +1,6 @@
+import "./config/env.js"; // ✅ Load env first
 import dns from "dns";
 dns.setDefaultResultOrder("ipv4first");
-import dotenv from "dotenv";
-dotenv.config(); // ✅ sabse pehle
 
 import http from "http";
 import { Server } from "socket.io";
