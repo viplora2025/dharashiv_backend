@@ -1,4 +1,4 @@
-import "./config/env.js"; // ✅ Load env first
+import env from "./config/env.js"; // ✅ Load and validate env first
 import dns from "dns";
 dns.setDefaultResultOrder("ipv4first");
 
@@ -6,16 +6,18 @@ import http from "http";
 import { Server } from "socket.io";
 
 import app from "./app.js";
-import connectDB from "./config/db_config.js";
+import connectDB, { disconnectDB } from "./config/db_config.js";
+import {
+  initRedisAdapter,
+  shutdownRedisAdapter,
+} from "./config/redisAdapter.js";
 
 import socketAuthMiddleware from "./middlewares/socketAuthMiddleware.js";
 
-connectDB();
+const { PORT, NODE_ENV } = env;
 
-// 🔹 Create HTTP server from Express app
 const server = http.createServer(app);
 
-// 🔹 Create Socket.IO server
 const io = new Server(server, {
   cors: {
     origin: true,
@@ -25,38 +27,20 @@ const io = new Server(server, {
 
 io.use(socketAuthMiddleware);
 
-// 🔹 Temporary test (sirf check ke liye) Add Room Join Logic
 io.on("connection", (socket) => {
-  // ✅ GLOBAL USERS ROOM (VERY IMPORTANT)
-
-  console.log("🟢 Socket connected:", socket.id);
+  console.log("💬 Socket connected:", socket.id);
 
   const user = socket.user;
 
   if (!user) {
-    console.log("⚠️ No user on socket");
+    console.warn("⚠️ No user attached to socket", socket.id);
     return;
   }
 
-
-  // ================= TYPING INDICATOR =================
   socket.on("complaint:typing", (data) => {
     if (!data || typeof data !== "object") return;
 
     const { complaintId, toUserId, toAdminId } = data;
-
-    console.log("📨 Typing event received:", data);
-
-    if (toAdminId) {
-      console.log("➡️ Sending to admin room:", `admin:${toAdminId}`);
-    }
-
-    if (toUserId) {
-      console.log("➡️ Sending to user room:", `user:${toUserId}`);
-    }
-
-    const user = socket.user;
-    if (!user) return;
 
     if (toAdminId) {
       io.to(`admin:${toAdminId}`).emit("complaint:typing", {
@@ -74,16 +58,95 @@ io.on("connection", (socket) => {
   });
 
   socket.on("disconnect", () => {
-    console.log("🔴 Socket disconnected:", socket.id);
+    console.log("⚙️ Socket disconnected:", socket.id);
   });
 });
 
-const PORT = process.env.PORT || 4000;
+const closeHttpServer = () =>
+  new Promise((resolve) => {
+    if (!server.listening) {
+      return resolve();
+    }
+    server.close((err) => {
+      if (err) {
+        console.error("❌ Error closing HTTP server:", err.message);
+      } else {
+        console.log("🛑 HTTP server closed");
+      }
+      resolve();
+    });
+  });
 
-// 🔹 IMPORTANT: listen on server, not app
-server.listen(PORT, () => {
-  console.log(`🚀 Server + Socket running on port ${PORT}`);
+let shuttingDown = false;
+
+const shutdownGracefully = async (signal, exitCode = 0) => {
+  if (shuttingDown) return;
+  shuttingDown = true;
+
+  console.warn(`⚙️ Received ${signal} → shutting down gracefully`);
+
+  const forceExit = setTimeout(() => {
+    console.error("❌ Graceful shutdown timed out; forcing exit");
+    process.exit(1);
+  }, 10_000);
+  forceExit.unref();
+
+  await closeHttpServer();
+
+  try {
+    await shutdownRedisAdapter();
+  } catch (err) {
+    console.error("❌ Redis adapter shutdown error:", err?.message || err);
+  }
+
+  await disconnectDB();
+
+  clearTimeout(forceExit);
+  console.log("✅ Shutdown complete");
+  process.exit(exitCode);
+};
+
+const handleServerError = (error) => {
+  if (error.code === "EADDRINUSE") {
+    console.error(
+      `⚠️ Port ${PORT} is already in use; stop other processes or change PORT.`
+    );
+    process.exit(1);
+  }
+
+  throw error;
+};
+
+server.on("error", handleServerError);
+
+const startServer = async () => {
+  await initRedisAdapter(io);
+  server.listen(PORT, () => {
+    console.log(`🚀 [${NODE_ENV}] Server + Socket running on port ${PORT}`);
+  });
+};
+
+const initialize = async () => {
+  await connectDB();
+  await startServer();
+};
+
+initialize().catch((err) => {
+  console.error("❌ Server failed to start:", err?.message || err);
+  shutdownGracefully("startServerError", 1);
 });
 
-// 🔹 export io for later use (VERY IMPORTANT)
+process.on("SIGINT", () => shutdownGracefully("SIGINT"));
+process.on("SIGTERM", () => shutdownGracefully("SIGTERM"));
+
+process.on("unhandledRejection", (reason) => {
+  console.error("❌ Unhandled rejection:", reason);
+  shutdownGracefully("unhandledRejection", 1);
+});
+
+process.on("uncaughtException", (error) => {
+  console.error("❌ Uncaught exception:", error);
+  shutdownGracefully("uncaughtException", 1);
+});
+
 export { io };

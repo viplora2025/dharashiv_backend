@@ -1,27 +1,39 @@
 import nodemailer from "nodemailer";
+import env from "../config/env.js";
 
-/* ================= TRANSPORT ================= */
-const transporter = nodemailer.createTransport({
-  host: process.env.EMAIL_HOST,           // smtp.gmail.com
-  port: Number(process.env.EMAIL_PORT),   // 587
-  secure: false,                          // TLS (587)
-  auth: {
-    user: process.env.EMAIL_USER,
-    pass: process.env.EMAIL_PASS
-  },
-  tls: {
-    rejectUnauthorized: false
-  }
-});
+const hasEmailConfig =
+  Boolean(env.EMAIL_HOST) &&
+  Boolean(env.EMAIL_USER) &&
+  Boolean(env.EMAIL_PASS) &&
+  Boolean(env.EMAIL_FROM) &&
+  Boolean(env.EMAIL_PORT);
 
-// (optional but good) – startup check
-transporter.verify((err) => {
-  if (err) {
-    console.error("❌ Email transporter error:", err.message);
-  } else {
-    console.log("📧 Email transporter ready");
-  }
-});
+const transporter = hasEmailConfig
+  ? nodemailer.createTransport({
+      host: env.EMAIL_HOST,
+      port: Number(env.EMAIL_PORT),
+      secure: false,
+      auth: {
+        user: env.EMAIL_USER,
+        pass: env.EMAIL_PASS,
+      },
+      tls: {
+        rejectUnauthorized: false,
+      },
+    })
+  : null;
+
+if (transporter) {
+  transporter.verify((err) => {
+    if (err) {
+      console.error("❌ Email transporter error:", err.message);
+    } else {
+      console.log("📧 Email transporter ready");
+    }
+  });
+} else {
+  console.warn("⚠️ Email transporter disabled; EMAIL_* environment variables incomplete");
+}
 
 /* ================= BASE WRAPPER ================= */
 const baseTemplate = (title, content) => `
@@ -53,12 +65,17 @@ const baseTemplate = (title, content) => `
 
 /* ================= SEND EMAIL ================= */
 export const sendEmail = async ({ to, subject, html }) => {
+  if (!transporter) {
+    console.warn("⚠️ Skipping email send: transporter not configured");
+    return;
+  }
+
   try {
     await transporter.sendMail({
-      from: process.env.EMAIL_FROM, // "Viplora Tech <cinpedoff@gmail.com>"
+      from: env.EMAIL_FROM,
       to,
       subject,
-      html
+      html,
     });
   } catch (err) {
     console.error("❌ Email send failed:", err.message);
@@ -97,7 +114,7 @@ export const sendOtpEmail = async (to, otp) => {
   return sendEmail({
     to,
     subject: "Your OTP Code",
-    html
+    html,
   });
 };
 
@@ -126,7 +143,7 @@ export const sendWelcomeEmail = async (to, name, role) => {
   return sendEmail({
     to,
     subject: "Welcome to Viplora Tech",
-    html
+    html,
   });
 };
 
@@ -147,7 +164,7 @@ export const sendPasswordChangedEmail = async (to) => {
   return sendEmail({
     to,
     subject: "Security Alert: Password Changed",
-    html
+    html,
   });
 };
 
@@ -158,7 +175,7 @@ export const sendComplaintForwardEmail = async ({ to, complaint, departmentName 
     : "";
 
   const voiceHtml = complaint.voiceNote?.url
-    ? `<h4>Voice Note:</h4><p><a href="${complaint.voiceNote.url}" target="_blank">🔊 Listen to Voice Note</a></p>`
+    ? `<h4>Voice Note:</h4><p><a href="${complaint.voiceNote.url}" target="_blank">🎧 Listen to Voice Note</a></p>`
     : "";
 
   const html = baseTemplate(
@@ -191,7 +208,7 @@ export const sendComplaintForwardEmail = async ({ to, complaint, departmentName 
   return sendEmail({
     to,
     subject: `Forwarded Complaint: ${complaint.complaintId}`,
-    html
+    html,
   });
 };
 
