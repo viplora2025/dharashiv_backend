@@ -1,22 +1,19 @@
-// src/services/complaintService.js
-
 import Complaint from "../models/complaintModel.js";
 import AppUser from "../models/appUserModel.js";
 import Complainer from "../models/complainerModel.js";
 import Department from "../models/departmentModel.js";
 import mongoose from "mongoose";
 import generateComplaintId from "../utils/generateComplaintId.js";
-import { io } from "../server.js";
 import { storageService } from "./storageService.js";
-import { getMediaTypeAndResource } from "../utils/mediaType.js";
 import { validateFileSignature } from "../utils/fileSignature.js";
 import { sendComplaintForwardEmail } from "../utils/email.js";
 import { createNotificationService, notifyAdminsService } from "./notificationService.js";
+import { addSocketEventJob } from "../queues/notificationQueue.js";
 
 
 const emitToTalukaAdmins = (talukaId, eventName, payload) => {
   if (!talukaId) return;
-  io.to(`taluka:${talukaId.toString()}`).emit(eventName, payload);
+  addSocketEventJob(`taluka:${talukaId.toString()}`, eventName, payload);
 };
 
 const emitComplaintNotification = async ({
@@ -33,10 +30,10 @@ const emitComplaintNotification = async ({
     emitToTalukaAdmins(talukaId, adminEvent, payload);
   }
   if (userEvent && appUserId) {
-    io.to(`user:${appUserId}`).emit(userEvent, payload);
+    addSocketEventJob(`user:${appUserId}`, userEvent, payload);
   }
 
-  // Persistent Notification
+  // Persistent Notification (Already using queue inside notifyAdminsService / createNotificationService)
   if (persistent && notificationData) {
     try {
       if (recipientModel === "Admin") {
@@ -48,7 +45,7 @@ const emitComplaintNotification = async ({
         await createNotificationService(notificationData);
       }
     } catch (err) {
-      console.error("Failed to create persistent notification:", err.message);
+      console.error("Failed to queue persistent notification:", err.message);
     }
   }
 };

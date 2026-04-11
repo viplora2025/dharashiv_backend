@@ -1,44 +1,18 @@
 // src/services/notificationService.js
 
+import { addNotificationJob, addBroadcastJob } from "../queues/notificationQueue.js";
 import Notification from "../models/notificationModel.js";
-import AppUser from "../models/appUserModel.js";
-import Admin from "../models/adminModel.js";
-import { io } from "../server.js";
 
 /**
- * Create a new notification and emit via socket
+ * Create a new notification (Pushed to Queue)
  */
 export const createNotificationService = async (data) => {
-  const { recipientId, recipientModel, title, message, type, relatedId } = data;
-
-  const notification = await Notification.create({
-    recipient: recipientId,
-    recipientModel,
-    title,
-    message,
-    type,
-    relatedId
-  });
-
-  // Emit real-time notification via socket
-  let socketRoom = "";
-  if (recipientModel === "AppUser") {
-    const user = await AppUser.findById(recipientId);
-    if (user) socketRoom = `user:${user.appUserId}`;
-  } else if (recipientModel === "Admin") {
-    const admin = await Admin.findById(recipientId);
-    if (admin) socketRoom = `admin:${admin.adminId}`;
-  }
-
-  if (socketRoom) {
-    io.to(socketRoom).emit("notification:new", notification);
-  }
-
-  return notification;
+  await addNotificationJob(data);
+  return { status: "queued", message: "Notification is being processed" };
 };
 
 /**
- * Get notifications for a user/admin
+ * Get notifications for a user/admin (No change needed - Read only)
  */
 export const getUserNotificationsService = async (req) => {
   const recipientId = req.user._id;
@@ -99,56 +73,20 @@ export const clearNotificationsService = async (req) => {
   return true;
 };
 
-
 /**
- * Notify all admins or specific taluka admins
+ * Notify all admins or specific taluka admins (Pushed to Queue)
  */
-export const notifyAdminsService = async ({ talukaId, title, message, type, relatedId }) => {
-  const query = talukaId ? { assignedTaluka: talukaId } : {};
-  const admins = await Admin.find(query);
-
-  const notifications = admins.map(admin => ({
-    recipient: admin._id,
-    recipientModel: 'Admin',
-    title,
-    message,
-    type,
-    relatedId
-  }));
-
-  if (notifications.length > 0) {
-    const created = await Notification.insertMany(notifications);
-    
-    // Emit to rooms
-    admins.forEach((admin, index) => {
-      io.to(`admin:${admin.adminId}`).emit("notification:new", created[index]);
-    });
-  }
+export const notifyAdminsService = async (data) => {
+  await addBroadcastJob("taluka-admins", data);
+  return { status: "queued" };
 };
 
 /**
- * Notify all app users
+ * Notify all app users (Pushed to Queue)
  */
-export const notifyAllUsersService = async ({ title, message, type, relatedId }) => {
-  const users = await AppUser.find({});
-  
-  const notifications = users.map(user => ({
-    recipient: user._id,
-    recipientModel: 'AppUser',
-    title,
-    message,
-    type,
-    relatedId
-  }));
-
-  if (notifications.length > 0) {
-    const created = await Notification.insertMany(notifications);
-    
-    // Emit to users room (or individual rooms)
-    users.forEach((user, index) => {
-      io.to(`user:${user.appUserId}`).emit("notification:new", created[index]);
-    });
-  }
+export const notifyAllUsersService = async (data) => {
+  await addBroadcastJob("all-users", data);
+  return { status: "queued" };
 };
 
 /**

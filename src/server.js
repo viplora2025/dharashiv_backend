@@ -11,6 +11,7 @@ import {
   initRedisAdapter,
   shutdownRedisAdapter,
 } from "./config/redisAdapter.js";
+import { initNotificationWorker } from "./workers/notificationWorker.js";
 
 import socketAuthMiddleware from "./middlewares/socketAuthMiddleware.js";
 
@@ -121,6 +122,7 @@ server.on("error", handleServerError);
 
 const startServer = async () => {
   await initRedisAdapter(io);
+  initNotificationWorker(); // 🚀 Start background worker
   server.listen(PORT, () => {
     console.log(`🚀 [${NODE_ENV}] Server + Socket running on port ${PORT}`);
   });
