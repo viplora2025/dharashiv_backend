@@ -17,6 +17,7 @@ export const registerVisitorSchema = z.object({
     village: mongoIdSchema,
     taluka: mongoIdSchema,
     issue: z.string().min(3, "Issue must be at least 3 characters"),
+    registrationType: z.string().optional(),
   }),
 });
 
