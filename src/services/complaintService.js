@@ -11,6 +11,8 @@ import { storageService } from "./storageService.js";
 import { getMediaTypeAndResource } from "../utils/mediaType.js";
 import { validateFileSignature } from "../utils/fileSignature.js";
 import { sendComplaintForwardEmail } from "../utils/email.js";
+import { createNotificationService, notifyAdminsService } from "./notificationService.js";
+
 
 const emitToTalukaAdmins = (talukaId, eventName, payload) => {
   if (!talukaId) return;
@@ -22,7 +24,10 @@ const emitComplaintNotification = async ({
   appUserId,
   adminEvent,
   userEvent,
-  payload
+  payload,
+  persistent = false,
+  notificationData = null,
+  recipientModel = "AppUser"
 }) => {
   if (adminEvent) {
     emitToTalukaAdmins(talukaId, adminEvent, payload);
@@ -30,7 +35,25 @@ const emitComplaintNotification = async ({
   if (userEvent && appUserId) {
     io.to(`user:${appUserId}`).emit(userEvent, payload);
   }
+
+  // Persistent Notification
+  if (persistent && notificationData) {
+    try {
+      if (recipientModel === "Admin") {
+        await notifyAdminsService({
+          talukaId,
+          ...notificationData
+        });
+      } else {
+        await createNotificationService(notificationData);
+      }
+    } catch (err) {
+      console.error("Failed to create persistent notification:", err.message);
+    }
+  }
 };
+
+
 
 /* ================= CREATE COMPLAINT ================= */
 export const createComplaintService = async (req) => {
@@ -133,6 +156,20 @@ export const createComplaintService = async (req) => {
           talukaId: complainerDoc.taluka,
           createdAt: complaint.createdAt,
         },
+        persistent: true,
+        recipientModel: "Admin",
+        notificationData: {
+          title: { 
+            en: "New Complaint", 
+            mr: "नवीन तक्रार" 
+          },
+          message: { 
+            en: `New complaint ${complaint.complaintId} from ${complainerDoc.name}`, 
+            mr: `${complainerDoc.name} कडून नवीन तक्रार ${complaint.complaintId}` 
+          },
+          type: "complaint_new",
+          relatedId: complaint._id
+        }
       });
     } catch (err) {
       console.error("Socket emit failed:", err.message);
@@ -294,8 +331,25 @@ export const updateComplaintStatusService = async (id, status, req) => {
         status: complaint.status,
         updatedByRole: req.role,
         updatedAt: complaint.updatedAt
+      },
+      persistent: true,
+      notificationData: {
+        recipientId: complaint.filedBy?._id,
+        recipientModel: "AppUser",
+        title: {
+
+          en: "Complaint Status Updated",
+          mr: "तक्रारीची स्थिती अद्ययावत केली"
+        },
+        message: {
+          en: `Your complaint ${complaint.complaintId} status has been updated to ${status}`,
+          mr: `तुमच्या तक्रार ${complaint.complaintId} ची स्थिती ${status} वर अद्ययावत केली गेली आहे`
+        },
+        type: "complaint_status",
+        relatedId: complaint._id
       }
     });
+
   } catch (err) {
     console.error("Socket emit failed:", err.message);
   }
@@ -416,8 +470,26 @@ export const addChatMessageService = async (id, req) => {
           message: latestMessage.message || null,
           media: latestMessage.media || [],
           timestamp: latestMessage.timestamp
+        },
+        persistent: true,
+        recipientModel: isUserSender ? "Admin" : "AppUser",
+        notificationData: {
+          recipientId: isUserSender ? null : complaint.filedBy?._id,
+          recipientModel: isUserSender ? "Admin" : "AppUser",
+          title: {
+            en: isUserSender ? "New Message from User" : "New Message from Admin",
+            mr: isUserSender ? "वापरकर्त्याकडून नवीन संदेश" : "प्रशासकाकडून नवीन संदेश"
+          },
+          message: {
+            en: `New message on complaint ${complaint.complaintId}`,
+            mr: `तक्रार ${complaint.complaintId} वर नवीन संदेश`
+          },
+          type: "complaint_chat",
+          relatedId: complaint._id
         }
       });
+
+
     } catch (err) {
       console.error("Socket emit failed:", err.message);
     }

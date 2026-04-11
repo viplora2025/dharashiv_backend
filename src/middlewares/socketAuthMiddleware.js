@@ -1,4 +1,5 @@
 import jwt from "jsonwebtoken";
+import mongoose from "mongoose";
 import Admin from "../models/adminModel.js";
 import AppUser from "../models/appUserModel.js";
 
@@ -16,9 +17,7 @@ const socketAuthMiddleware = async (socket, next) => {
      * 1) socket.handshake.auth.token   (recommended)
      * 2) Authorization header (fallback)
      */
-    let token =
-      socket.handshake.auth?.token ||
-      socket.handshake.headers?.authorization;
+    let token = socket.handshake.auth?.token;
 
     if (!token) {
       return next(new Error("Authorization token required"));
@@ -37,9 +36,11 @@ const socketAuthMiddleware = async (socket, next) => {
 
     // ================= USER =================
     if (decoded.role === "user") {
-      const user = await AppUser.findOne({
-        appUserId: decoded.id
-      });
+      const query = { $or: [{ appUserId: decoded.id }] };
+      if (mongoose.Types.ObjectId.isValid(decoded.id)) {
+        query.$or.push({ _id: decoded.id });
+      }
+      const user = await AppUser.findOne(query);
 
       if (!user) {
         return next(new Error("User not found"));
@@ -57,9 +58,11 @@ const socketAuthMiddleware = async (socket, next) => {
 
     // ================= STAFF / ADMIN / SUPERADMIN =================
     else if (["staff", "admin", "superadmin"].includes(decoded.role)) {
-      const admin = await Admin.findOne({
-        adminId: decoded.id
-      });
+      const query = { $or: [{ adminId: decoded.id }] };
+      if (mongoose.Types.ObjectId.isValid(decoded.id)) {
+        query.$or.push({ _id: decoded.id });
+      }
+      const admin = await Admin.findOne(query);
 
       if (!admin) {
         return next(new Error("Admin not found"));

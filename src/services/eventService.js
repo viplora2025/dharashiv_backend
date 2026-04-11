@@ -1,9 +1,7 @@
-// src/services/eventService.js
-
 import Event from "../models/eventModel.js";
 import { generateEventId } from "../utils/generateIds.js";
-import { io } from "../server.js";
-import { EventStatus } from "../config/constants.js";
+import { notifyAllUsersService } from "./notificationService.js";
+
 
 /* ================= CREATE EVENT ================= */
 export const createEventService = async (data) => {
@@ -34,20 +32,18 @@ export const createEventService = async (data) => {
       createdBy
     });
 
-  // Notify all connected users
-  io.to("users").emit("event:new", {
-    eventId: event._id,
+  // Notify all users persistently
+  await notifyAllUsersService({
     title: {
-      en: event.title.en,
-      mr: event.title.mr
+      en: "New Event Announced",
+      mr: "नवीन कार्यक्रमाची घोषणा"
     },
-    eventDate: event.eventDate,
-    startTime: event.startTime,
-    endTime: event.endTime,
-    status: {
-      en: event.status.en,
-      mr: event.status.mr
-    }
+    message: {
+      en: `${event.title.en} on ${new Date(event.eventDate).toLocaleDateString()}`,
+      mr: `${event.title.mr} - ${new Date(event.eventDate).toLocaleDateString()}`
+    },
+    type: "event_new",
+    relatedId: event._id
   });
 
   return event;
@@ -105,17 +101,23 @@ export const updateEventStatusService = async (id, status) => {
     throw new Error("Event not found");
   }
 
-  // Notify all connected users
-  io.to("users").emit("event:status:updated", {
-    eventId: event._id,
-    status: {
-      en: event.status.en,
-      mr: event.status.mr
-    }
+  // Notify all users persistently
+  await notifyAllUsersService({
+    title: {
+      en: `Event Status: ${event.status.en}`,
+      mr: `कार्यक्रम स्थिती: ${event.status.mr}`
+    },
+    message: {
+      en: `The status of ${event.title.en} has been updated.`,
+      mr: `${event.title.mr} ची स्थिती अपडेट करण्यात आली आहे.`
+    },
+    type: "event_status_updated",
+    relatedId: event._id
   });
 
   return event;
 };
+
 
 /* ================= GET ALL EVENTS ================= */
 export const getAllEventsService = async () => {

@@ -3,6 +3,8 @@
 import Visitor from "../models/visitorModel.js";
 import Event from "../models/eventModel.js";
 import { VisitorStatus, RegistrationType, EventStatus } from "../config/constants.js";
+import { notifyAdminsService } from "./notificationService.js";
+
 
 /* =========================
    REGISTER VISITOR (ONLINE)
@@ -37,7 +39,23 @@ export const registerVisitorOnlineService = async (data) => {
     appUser
   });
 
+  // Notify admins
+  notifyAdminsService({
+    talukaId: visitor.taluka,
+    title: {
+      en: "New Visitor Registered",
+      mr: "नवीन अभ्यागत नोंदणीकृत"
+    },
+    message: {
+      en: `${visitor.visitorName} has registered for token #${visitor.tokenNo}`,
+      mr: `${visitor.visitorName} यांनी टोकन #${visitor.tokenNo} साठी नोंदणी केली आहे`
+    },
+    type: "visitor_new",
+    relatedId: visitor._id
+  }).catch(err => console.error("Visitor notification failed:", err.message));
+
   return visitor;
+
 };
 
 /* =========================
