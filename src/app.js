@@ -16,6 +16,8 @@ import eventRoutes from "./routes/eventRoutes.js";
 import visitorRoutes from "./routes/visitorRoutes.js";
 import dailyVisitorRoutes from "./routes/dailyVisitorRoutes.js";
 import announcementRoutes from "./routes/announcementRoutes.js";
+import notificationRoute from "./routes/notificationRoute.js";
+
 import errorMiddleware from "./middlewares/errorMiddleware.js";
 import { globalApiLimiter } from "./middlewares/rateLimit.js";
 
@@ -92,6 +94,10 @@ console.log("✔ daily visitors route loaded");
 
 app.use("/api/announcements", announcementRoutes);
 console.log("✔ announcements route loaded");
+
+app.use("/api/notifications", notificationRoute);
+console.log("✔ notifications route loaded");
+
 
 
 app.use(errorMiddleware);

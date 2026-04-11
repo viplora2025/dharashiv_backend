@@ -1,6 +1,7 @@
 // src/middlewares/auth.middleware.js
 
 import jwt from "jsonwebtoken";
+import mongoose from "mongoose";
 import Admin from "../models/adminModel.js";
 import AppUser from "../models/appUserModel.js";
 
@@ -24,9 +25,11 @@ export const auth = async (req, res, next) => {
 
     /* ================= APP USER ================= */
     if (decoded.role === "user") {
-      const user = await AppUser.findOne({
-        appUserId: decoded.id
-      });
+      const query = { $or: [{ appUserId: decoded.id }] };
+      if (mongoose.Types.ObjectId.isValid(decoded.id)) {
+        query.$or.push({ _id: decoded.id });
+      }
+      const user = await AppUser.findOne(query);
 
       if (!user) {
         return res.status(403).json({ message: "User not found" });
@@ -38,9 +41,11 @@ export const auth = async (req, res, next) => {
 
     /* ================= STAFF / ADMIN / SUPERADMIN ================= */
     else if (["staff", "admin", "superadmin"].includes(decoded.role)) {
-      const admin = await Admin.findOne({
-        adminId: decoded.id
-      });
+      const query = { $or: [{ adminId: decoded.id }] };
+      if (mongoose.Types.ObjectId.isValid(decoded.id)) {
+        query.$or.push({ _id: decoded.id });
+      }
+      const admin = await Admin.findOne(query);
 
       if (!admin) {
         return res.status(403).json({ message: "Admin not found" });

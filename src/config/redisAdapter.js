@@ -18,8 +18,7 @@ const handleClientError = (label, err) => {
 
 export const initRedisAdapter = async (io) => {
   if (!REDIS_URL) {
-    console.info(`${logPrefix} REDIS_URL missing; sticking with in-memory Socket.IO adapter`);
-    return;
+    throw new Error(`${logPrefix} REDIS_URL is required but missing. Redis is mandatory.`);
   }
 
   if (adapterInitialized) {
@@ -39,17 +38,11 @@ export const initRedisAdapter = async (io) => {
     adapterInitialized = true;
     console.info(`${logPrefix} Connected to Redis at ${REDIS_URL}`);
   } catch (err) {
-    console.error(`${logPrefix} Failed to initialize Redis adapter; falling back to in-memory.`, err?.message || err);
-    try {
-      await pubClient.disconnect();
-      await subClient.disconnect();
-    } catch {
-      /* ignore */
-    }
-    pubClient = null;
-    subClient = null;
+    console.error(`${logPrefix} FATAL: Failed to initialize Redis adapter.`, err?.message || err);
+    throw err; // Stop server if Redis fails
   }
 };
+
 
 export const shutdownRedisAdapter = async () => {
   if (!pubClient || !subClient) return;

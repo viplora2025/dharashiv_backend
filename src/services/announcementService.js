@@ -3,8 +3,8 @@
 import Announcement from "../models/announcementModel.js";
 import { storageService } from "../services/storageService.js";
 import { generateAnnouncementId } from "../utils/announcementIds.js";
-import { io } from "../server.js";
 import { validateFileSignature } from "../utils/fileSignature.js";
+import { notifyAllUsersService } from "./notificationService.js";
 
 const uploadImageIfPresent = async (file) => {
   if (!file) return null;
@@ -29,9 +29,8 @@ const uploadImageIfPresent = async (file) => {
   };
 };
 
-const emitAnnouncementPublished = (doc) => {
-  io.to("users").emit("announcement:published", {
-    announcementId: doc._id,
+const emitAnnouncementPublished = async (doc) => {
+  await notifyAllUsersService({
     title: {
       en: doc.title.en,
       mr: doc.title.mr
@@ -40,17 +39,8 @@ const emitAnnouncementPublished = (doc) => {
       en: doc.message.en,
       mr: doc.message.mr
     },
-    eventDate: doc.eventDate,
-    eventTime: doc.eventTime,
-    location: {
-      en: doc.location.en,
-      mr: doc.location.mr
-    },
-    type: {
-      en: doc.type.en,
-      mr: doc.type.mr
-    },
-    status: doc.status
+    type: "announcement_new",
+    relatedId: doc._id
   });
 };
 
