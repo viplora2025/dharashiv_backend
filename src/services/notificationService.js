@@ -7,7 +7,18 @@ import Notification from "../models/notificationModel.js";
  * Create a new notification (Pushed to Queue)
  */
 export const createNotificationService = async (data) => {
-  await addNotificationJob(data);
+  const recipientModel = data.recipientModel || data.recipientType;
+
+  if (!recipientModel) {
+    throw new Error("Recipient model/type is required for notification delivery");
+  }
+
+  const payload = {
+    ...data,
+    recipientModel,
+  };
+
+  await addNotificationJob(payload);
   return { status: "queued", message: "Notification is being processed" };
 };
 
