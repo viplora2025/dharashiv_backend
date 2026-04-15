@@ -78,6 +78,8 @@ const baseSchema = z.object({
   CLOUDINARY_API_SECRET: z.string().optional(),
 
   REDIS_URL: z.string().url().optional(),
+  UPSTASH_REDIS_REST_URL: z.string().url().optional(),
+  UPSTASH_REDIS_REST_TOKEN: z.string().optional(),
 });
 
 export const envSchema = baseSchema.refine(
