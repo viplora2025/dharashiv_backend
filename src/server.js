@@ -122,7 +122,7 @@ server.on("error", handleServerError);
 
 const startServer = async () => {
   await initRedisAdapter(io);
-  initNotificationWorker(); // 🚀 Start background worker
+  initNotificationWorker(io); // 🚀 Start background worker
   server.listen(PORT, () => {
     console.log(`🚀 [${NODE_ENV}] Server + Socket running on port ${PORT}`);
   });

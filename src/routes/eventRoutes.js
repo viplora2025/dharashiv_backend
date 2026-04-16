@@ -40,7 +40,7 @@ router.get("/:id", auth, getEventById);
 
 // Update Event (Full)
 router.put(
-  "//:id",
+  "/:id",
   auth,
   superAdminOnly,
   validate(updateEventSchema),

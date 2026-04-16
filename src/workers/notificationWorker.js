@@ -1,12 +1,22 @@
 // src/workers/notificationWorker.js
 import { Worker } from "bullmq";
-import { redisConnection } from "../config/redisQueueConnection.js";
+import { redisConnection, isRedisQueueEnabled } from "../config/redisQueueConnection.js";
 import Notification from "../models/notificationModel.js";
 import AppUser from "../models/appUserModel.js";
 import Admin from "../models/adminModel.js";
-import { io } from "../server.js";
 
 const NOTIFICATION_QUEUE_NAME = "notification-queue";
+
+let ioInstance = null;
+
+const getIo = () => ioInstance;
+
+const emitToRoom = (room, event, payload) => {
+  const io = getIo();
+  if (io && room && event) {
+    io.to(room).emit(event, payload);
+  }
+};
 
 /**
  * Worker Logic for processing notifications
@@ -36,9 +46,7 @@ const processNotificationJob = async (job) => {
  */
 async function handleSocketEvent(data) {
   const { room, event, payload } = data;
-  if (io && room && event) {
-    io.to(room).emit(event, payload);
-  }
+  emitToRoom(room, event, payload);
 }
 
 /**
@@ -68,8 +76,8 @@ async function handleSingleNotification(data) {
   }
 
   // 3. Emit
-  if (socketRoom && io) {
-    io.to(socketRoom).emit("notification:new", notification);
+  if (socketRoom) {
+    emitToRoom(socketRoom, "notification:new", notification);
   }
 }
 
@@ -94,6 +102,7 @@ async function handleBroadcastAllUsers(data) {
   const created = await Notification.insertMany(notificationsData);
 
   // Emit individually (Socket.IO + Redis Adapter handles this efficiently)
+  const io = getIo();
   if (io) {
     users.forEach((user, index) => {
       io.to(`user:${user.appUserId}`).emit("notification:new", created[index]);
@@ -122,6 +131,7 @@ async function handleBroadcastTalukaAdmins(data) {
 
   const created = await Notification.insertMany(notificationsData);
 
+  const io = getIo();
   if (io) {
     admins.forEach((admin, index) => {
       io.to(`admin:${admin.adminId}`).emit("notification:new", created[index]);
@@ -130,7 +140,12 @@ async function handleBroadcastTalukaAdmins(data) {
 }
 
 // Initialize the Worker
-export const initNotificationWorker = () => {
+export const initNotificationWorker = (io) => {
+  ioInstance = io || null;
+  if (!isRedisQueueEnabled) {
+    console.warn("⚠️  REDIS_URL not set — notification worker not started.");
+    return null;
+  }
   const worker = new Worker(NOTIFICATION_QUEUE_NAME, processNotificationJob, {
     connection: redisConnection,
     concurrency: 5, // Process 5 jobs at a time

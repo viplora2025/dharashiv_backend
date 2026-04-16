@@ -3,12 +3,13 @@ import env from "./env.js";
 
 const REDIS_URL = env.REDIS_URL;
 
-const getRedisConfig = () => {
+export const isRedisQueueEnabled = Boolean(REDIS_URL);
+
+export const getRedisConnection = () => {
   if (!REDIS_URL) {
-    throw new Error("REDIS_URL is required for notification queues");
+    return null;
   }
 
-  // Parse REDIS_URL for BullMQ connection object
   try {
     const url = new URL(REDIS_URL);
     return {
@@ -25,4 +26,4 @@ const getRedisConfig = () => {
   }
 };
 
-export const redisConnection = getRedisConfig();
+export const redisConnection = getRedisConnection();

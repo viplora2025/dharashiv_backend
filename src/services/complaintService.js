@@ -574,7 +574,14 @@ export const forwardComplaintToDeptService = async (id, req) => {
   }
 
   const complaint = await Complaint.findById(id)
-    .populate("complainer", "name phone")
+    .populate({
+      path: "complainer",
+      select: "name phone",
+      populate: [
+        { path: "taluka", select: "name" },
+        { path: "village", select: "name" }
+      ]
+    })
     .populate("department", "name email")
     .populate("filedBy", "appUserId");
 

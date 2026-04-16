@@ -18,7 +18,8 @@ const handleClientError = (label, err) => {
 
 export const initRedisAdapter = async (io) => {
   if (!REDIS_URL) {
-    throw new Error(`${logPrefix} REDIS_URL is required but missing. Redis is mandatory.`);
+    console.warn(`${logPrefix} REDIS_URL not set — skipping Redis adapter (using in-memory adapter).`);
+    return;
   }
 
   if (adapterInitialized) {

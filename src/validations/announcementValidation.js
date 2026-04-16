@@ -2,15 +2,20 @@
 
 import { z } from "zod";
 
-const bilingualStringSchema = z.object({
-  en: z.string().min(3, "English text must be at least 3 characters"),
-  mr: z.string().min(3, "Marathi text must be at least 3 characters"),
-});
+const flatToBilingual = (minLen, label) =>
+  z.preprocess(
+    (val) => {
+      if (typeof val === "string") return { en: val, mr: val };
+      return val;
+    },
+    z.object({
+      en: z.string().min(minLen, `English ${label} must be at least ${minLen} characters`),
+      mr: z.string().min(minLen, `Marathi ${label} must be at least ${minLen} characters`),
+    })
+  );
 
-const bilingualLongTextSchema = z.object({
-  en: z.string().min(10, "English message must be at least 10 characters"),
-  mr: z.string().min(10, "Marathi message must be at least 10 characters"),
-});
+const bilingualStringSchema = flatToBilingual(3, "text");
+const bilingualLongTextSchema = flatToBilingual(10, "message");
 
 export const createAnnouncementSchema = z.object({
   body: z.object({

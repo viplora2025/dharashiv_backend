@@ -5,10 +5,13 @@ import { EventStatus } from "../config/constants.js";
 
 const allowedStatus = Object.values(EventStatus);
 
-const bilingualStringSchema = z.object({
-  en: z.string().min(1, "English text is required"),
-  mr: z.string().min(1, "Marathi text is required"),
-});
+const bilingualStringSchema = z.preprocess(
+  (val) => (typeof val === "string" ? { en: val, mr: val } : val),
+  z.object({
+    en: z.string().min(1, "English text is required"),
+    mr: z.string().min(1, "Marathi text is required"),
+  })
+);
 
 export const createEventSchema = z.object({
   body: z.object({
