@@ -23,9 +23,30 @@ import errorMiddleware from "./middlewares/errorMiddleware.js";
 import { globalApiLimiter } from "./middlewares/rateLimit.js";
 
 const app = express();
-app.use("/api", globalApiLimiter);
 
 console.log("🔥 app.js loaded");
+
+// ✅ CORS MUST BE FIRST — before rate limiter, helmet, or any middleware
+// that can short-circuit a request. Otherwise OPTIONS preflight responses
+// can be returned (e.g. by the rate limiter) without CORS headers and the
+// browser reports net::ERR_FAILED + "No 'Access-Control-Allow-Origin'".
+const corsOptions = {
+  origin: (origin, cb) => {
+    if (!origin) return cb(null, true);
+    return cb(null, true);
+  },
+  credentials: true,
+  methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+  allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With"],
+  optionsSuccessStatus: 204,
+};
+app.use(cors(corsOptions));
+// Explicit preflight handler — guarantees OPTIONS always responds with
+// CORS headers even if a later middleware would otherwise intercept.
+app.options("*", cors(corsOptions));
+
+// Rate limiter AFTER CORS so preflight can never be 429'd without headers.
+app.use("/api", globalApiLimiter);
 
 // ✅ BASIC SECURITY HEADERS (CSP disabled to avoid frontend breakage)
 app.use(helmet({ contentSecurityPolicy: false }));
@@ -34,14 +55,6 @@ app.use(helmet({ contentSecurityPolicy: false }));
 app.use(
   mongoSanitize({
     replaceWith: "_"
-  })
-);
-
-// ✅ MIDDLEWARES
-app.use(
-  cors({
-    origin: true,
-    credentials: true,
   })
 );
 

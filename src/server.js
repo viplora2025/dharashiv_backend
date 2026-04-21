@@ -138,14 +138,39 @@ initialize().catch((err) => {
   shutdownGracefully("startServerError", 1);
 });
 
-process.on("SIGINT", () => shutdownGracefully("SIGINT"));
-process.on("SIGTERM", () => shutdownGracefully("SIGTERM"));
-
-process.on("unhandledRejection", (reason) => {
-  console.error("❌ Unhandled rejection:", reason);
-  shutdownGracefully("unhandledRejection", 1);
+// --- SIGINT handling ---
+// On Windows SIGINT can arrive not only from Ctrl+C but also from terminal
+// focus changes, sleep/wake, or a parent process exiting. Require two SIGINTs
+// within 3s to actually shut down so a stray signal cannot kill the server.
+let lastSigint = 0;
+process.on("SIGINT", () => {
+  const now = Date.now();
+  if (now - lastSigint < 3000) {
+    console.warn("⚙️ Received SIGINT (confirmed) → shutting down");
+    return shutdownGracefully("SIGINT");
+  }
+  lastSigint = now;
+  console.warn(
+    "⚙️ Received SIGINT — ignoring (press Ctrl+C again within 3s to actually stop)"
+  );
 });
 
+process.on("SIGTERM", () => shutdownGracefully("SIGTERM"));
+
+// SIGHUP is sent on Windows when the parent terminal closes — ignore so a
+// closed VS Code terminal doesn't take the API down.
+process.on("SIGHUP", () => {
+  console.warn("⚙️ Received SIGHUP — ignoring; server stays alive");
+});
+
+// Log unhandled rejections but keep the server alive. A stray unhandled
+// promise should not take down every route.
+process.on("unhandledRejection", (reason) => {
+  console.error("❌ Unhandled rejection (server kept alive):", reason);
+});
+
+// Uncaught exceptions leave the process in an unknown state — exit so the
+// supervisor (pm2/nodemon/docker) restarts cleanly.
 process.on("uncaughtException", (error) => {
   console.error("❌ Uncaught exception:", error);
   shutdownGracefully("uncaughtException", 1);

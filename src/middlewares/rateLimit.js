@@ -12,10 +12,16 @@ export const adminLoginLimiter = rateLimit({
   max: 10
 });
 
+// Global API limiter. Generous default so a normal admin session (with
+// notification polling + multiple tabs) can't exhaust the bucket. Disabled
+// entirely outside production so local work isn't silently throttled, and
+// OPTIONS preflight is always skipped so CORS preflight can never be 429'd.
 export const globalApiLimiter = rateLimit({
   ...baseOptions,
   windowMs: 15 * 60 * 1000,
-  max: 1000,
+  max: 10000,
+  skip: (req) =>
+    process.env.NODE_ENV !== "production" || req.method === "OPTIONS",
   message: { message: "Too many requests from this IP. Please try again later." }
 });
 
