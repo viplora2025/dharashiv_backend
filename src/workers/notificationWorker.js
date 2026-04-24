@@ -149,6 +149,9 @@ export const initNotificationWorker = (io) => {
   const worker = new Worker(NOTIFICATION_QUEUE_NAME, processNotificationJob, {
     connection: redisConnection,
     concurrency: 5, // Process 5 jobs at a time
+    lockDuration: 10000, // Duration of the lock on a job (10s)
+    stalledInterval: 3000, // Check for stalled jobs Every 3 seconds
+    maxStalledCount: 1,
   });
 
   worker.on("completed", (job) => {

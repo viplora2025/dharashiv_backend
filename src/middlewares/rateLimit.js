@@ -19,9 +19,9 @@ export const adminLoginLimiter = rateLimit({
 export const globalApiLimiter = rateLimit({
   ...baseOptions,
   windowMs: 15 * 60 * 1000,
-  max: 10000,
+  max: 20000,
   skip: (req) =>
-    process.env.NODE_ENV !== "production" || req.method === "OPTIONS",
+    process.env.NODE_ENV === "development" || req.method === "OPTIONS",
   message: { message: "Too many requests from this IP. Please try again later." }
 });
 

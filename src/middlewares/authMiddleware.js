@@ -4,6 +4,7 @@ import jwt from "jsonwebtoken";
 import mongoose from "mongoose";
 import Admin from "../models/adminModel.js";
 import AppUser from "../models/appUserModel.js";
+import RefreshToken from "../models/refreshTokenModel.js";
 
 /* ================= AUTH (USER + STAFF + ADMIN + SUPERADMIN) ================= */
 export const auth = async (req, res, next) => {
@@ -22,6 +23,13 @@ export const auth = async (req, res, next) => {
       token,
       process.env.ACCESS_TOKEN_SECRET
     );
+
+    // 3️⃣ GLOBAL LOGOUT CHECK: Ensure at least one valid refresh token exists for this user
+    // If user logged out globally, all refresh tokens are gone.
+    const hasActiveSession = await RefreshToken.exists({ userId: decoded.id });
+    if (!hasActiveSession) {
+      return res.status(401).json({ message: "Session invalidated globally. Please login again." });
+    }
 
     /* ================= APP USER ================= */
     if (decoded.role === "user") {

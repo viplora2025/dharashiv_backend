@@ -27,9 +27,9 @@ export const refreshAccessToken = async (req, res, next) => {
 /* ================= LOGOUT ================= */
 export const logout = async (req, res, next) => {
   try {
-    const { refreshToken } = req.body;
+    const { refreshToken, allDevices } = req.body;
 
-    await logoutService(refreshToken);
+    await logoutService(refreshToken, allDevices);
 
     sendSuccess(res, { message: "Logged out successfully" });
   } catch (err) {

@@ -16,7 +16,7 @@ import {
 } from "../controllers/complaintController.js";
 import upload from "../middlewares/uploadMiddleware.js";
 import { auth, adminOnly, userOnly, staffOnly, notStaff } from "../middlewares/authMiddleware.js";
-import { complaintCreateLimiter } from "../middlewares/rateLimit.js";
+// import { complaintCreateLimiter } from "../middlewares/rateLimit.js"; // Removed as per user request
 import validate from "../middlewares/validateMiddleware.js";
 import {
   createComplaintSchema,
@@ -30,7 +30,6 @@ const router = express.Router();
 /* ================= CREATE COMPLAINT ================= */
 router.post(
   "/",
-  complaintCreateLimiter,
   auth,
   userOnly,
   upload.fields([

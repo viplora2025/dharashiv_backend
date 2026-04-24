@@ -41,13 +41,19 @@ export const refreshAccessTokenService = async (refreshToken) => {
   return { accessToken: newAccessToken, refreshToken: newRefreshToken };
 };
 
-/* ================= LOGOUT ================= */
-export const logoutService = async (refreshToken) => {
-  if (!refreshToken) {
-    throw new Error("Refresh token required");
-  }
+export const logoutService = async (refreshToken, allDevices = false) => {
+  if (!refreshToken) throw new Error("Refresh token required");
 
-  await RefreshToken.deleteOne({ token: refreshToken });
+  if (allDevices) {
+    // 1. GLOBAL LOGOUT: Find the token to get the userId and delete EVERYTHING for them
+    const stored = await RefreshToken.findOne({ token: refreshToken });
+    if (stored) {
+      await RefreshToken.deleteMany({ userId: stored.userId });
+    }
+  } else {
+    // 2. LOCAL LOGOUT: Delete only THIS specific session token
+    await RefreshToken.deleteOne({ token: refreshToken });
+  }
 
   return true;
 };

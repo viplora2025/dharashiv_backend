@@ -11,7 +11,8 @@ import {
   getUserById,
   getUserByPhone,
   updateUserByAdmin,
-  deleteUser
+  deleteUser,
+  toggleUserBlock
 } from "../controllers/appUserController.js";
 import { auth, userOnly, staffOnly } from "../middlewares/authMiddleware.js";
 import {
@@ -70,6 +71,9 @@ router.put("/:id", auth, staffOnly, updateUserByAdmin);
 
 // Delete user
 router.delete("/:id", auth, staffOnly, deleteUser);
+
+// Toggle block user
+router.patch("/:id/toggle-block", auth, staffOnly, toggleUserBlock);
 
 
 export default router;

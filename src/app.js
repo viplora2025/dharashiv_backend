@@ -45,8 +45,8 @@ app.use(cors(corsOptions));
 // CORS headers even if a later middleware would otherwise intercept.
 app.options("*", cors(corsOptions));
 
-// Rate limiter AFTER CORS so preflight can never be 429'd without headers.
-app.use("/api", globalApiLimiter);
+// Rate limiter removed globally as per user request
+// app.use("/api", globalApiLimiter);
 
 // ✅ BASIC SECURITY HEADERS (CSP disabled to avoid frontend breakage)
 app.use(helmet({ contentSecurityPolicy: false }));

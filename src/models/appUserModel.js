@@ -31,6 +31,10 @@ const appUserSchema = new mongoose.Schema(
     secretAnswer: {
       type: String,
       required: true
+    },
+    isBlocked: {
+      type: Boolean,
+      default: false
     }
   },
   { timestamps: true }

@@ -43,6 +43,10 @@ export const loginUserService = async ({ phone, password }) => {
     throw new Error("User not found");
   }
 
+  if (user.isBlocked) {
+    throw new Error("Your account has been blocked. Please contact support.");
+  }
+
   const match = await bcrypt.compare(password, user.password);
   if (!match) {
     throw new Error("Invalid password");
@@ -105,8 +109,32 @@ export const updateMyProfileService = async (userId, data) => {
 };
 
 /* ================= ADMIN ================= */
-export const getAllUsersService = async () => {
-  return AppUser.find().select("-password -secretAnswer");
+export const getAllUsersService = async (page = 1, limit = 10, search = "") => {
+  const skip = (Number(page) - 1) * Number(limit);
+  const query = {};
+
+  if (search) {
+    query.$or = [
+      { name: { $regex: search, $options: "i" } },
+      { phone: { $regex: search, $options: "i" } },
+      { appUserId: { $regex: search, $options: "i" } }
+    ];
+  }
+
+  const total = await AppUser.countDocuments(query);
+  const users = await AppUser.find(query)
+    .select("-password -secretAnswer")
+    .sort({ createdAt: -1 })
+    .skip(skip)
+    .limit(Number(limit));
+
+  return {
+    users,
+    total,
+    page: Number(page),
+    limit: Number(limit),
+    totalPages: Math.ceil(total / Number(limit))
+  };
 };
 
 export const getUserByIdService = async (id) => {
@@ -126,13 +154,16 @@ export const getUserByPhoneService = async (phone) => {
 };
 
 export const updateUserByAdminService = async (id, data) => {
-  const { name, password } = data;
+  const { name, password, secretQuestion, secretAnswer } = data;
   const update = {};
 
   if (name !== undefined) update.name = name;
   if (password) {
-    validatePassword(password);
     update.password = await bcrypt.hash(password, 10);
+  }
+  if (secretQuestion) update.secretQuestion = secretQuestion;
+  if (secretAnswer) {
+    update.secretAnswer = await bcrypt.hash(secretAnswer, 10);
   }
 
   if (Object.keys(update).length === 0) {
@@ -151,4 +182,13 @@ export const deleteUserService = async (id) => {
 
   await user.deleteOne();
   return true;
+};
+
+export const toggleUserBlockService = async (id) => {
+  const user = await AppUser.findById(id);
+  if (!user) throw new Error("User not found");
+
+  user.isBlocked = !user.isBlocked;
+  await user.save();
+  return user;
 };
