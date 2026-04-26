@@ -1,93 +1,56 @@
 // src/controllers/talukaController.js
 
-import {
-  createTalukaService,
-  getAllTalukasService,
-  updateTalukaService,
-  deleteTalukaService,
-  resetTalukaCounterService
-} from "../services/talukaService.js";
-import { sendError, sendSuccess } from "../utils/response.js";
+import * as talukaService from "../services/talukaService.js";
+import { sendSuccess } from "../utils/response.js";
 
-/* ================= CREATE TALUKA ================= */
-export const createTaluka = async (req, res) => {
+export const createTaluka = async (req, res, next) => {
   try {
-    const taluka = await createTalukaService(req.body.name);
-
+    const taluka = await talukaService.createTalukaService(req.body.name);
     sendSuccess(res, {
       status: 201,
       message: "Taluka created successfully",
       data: taluka
     });
-  } catch (error) {
-    sendError(res, { status: 400, message: error.message });
+  } catch (err) {
+    next(err);
   }
 };
 
-/* ================= GET ALL TALUKAS ================= */
-export const getAllTalukas = async (req, res) => {
+export const getAllTalukas = async (req, res, next) => {
   try {
-    const talukas = await getAllTalukasService();
-
-    sendSuccess(res, {
-      status: 200,
-      message: "Taluka list fetched successfully",
-      data: talukas
-    });
-  } catch (error) {
-    sendError(res, { status: 500, message: "Internal server error" });
+    const talukas = await talukaService.getAllTalukasService();
+    sendSuccess(res, { data: talukas });
+  } catch (err) {
+    next(err);
   }
 };
 
-/* ================= UPDATE TALUKA ================= */
-export const updateTaluka = async (req, res) => {
+export const updateTaluka = async (req, res, next) => {
   try {
-    const updated = await updateTalukaService(
-      req.params.talukaId,
+    const taluka = await talukaService.updateTalukaService(
+      req.params.id,
       req.body.name
     );
-
-    sendSuccess(res, {
-      status: 200,
-      message: "Taluka updated successfully",
-      data: updated
-    });
-  } catch (error) {
-    if (error.message === "Taluka not found") {
-      return sendError(res, { status: 404, message: error.message });
-    }
-    sendError(res, { status: 400, message: error.message });
+    sendSuccess(res, { message: "Taluka updated successfully", data: taluka });
+  } catch (err) {
+    next(err);
   }
 };
 
-/* ================= DELETE TALUKA ================= */
-export const deleteTaluka = async (req, res) => {
+export const deleteTaluka = async (req, res, next) => {
   try {
-    await deleteTalukaService(req.params.talukaId);
-
-    sendSuccess(res, {
-      status: 200,
-      message: "Taluka deleted successfully"
-    });
-  } catch (error) {
-    if (error.message === "Taluka not found") {
-      return sendError(res, { status: 404, message: error.message });
-    }
-    sendError(res, { status: 500, message: "Internal server error" });
+    await talukaService.deleteTalukaService(req.params.id);
+    sendSuccess(res, { message: "Taluka deleted successfully" });
+  } catch (err) {
+    next(err);
   }
 };
 
-/* ================= RESET TALUKA COUNTER ================= */
-export const resetTalukaCounter = async (req, res) => {
+export const resetTalukaCounter = async (req, res, next) => {
   try {
-    await resetTalukaCounterService();
-
-    sendSuccess(res, {
-      status: 200,
-      message:
-        "Taluka ID counter reset successfully. Next ID will start from TLK001."
-    });
-  } catch (error) {
-    sendError(res, { status: 500, message: "Internal server error" });
+    await talukaService.resetTalukaCounterService();
+    sendSuccess(res, { message: "Taluka counter reset successfully" });
+  } catch (err) {
+    next(err);
   }
 };

@@ -8,24 +8,28 @@
     "start": "node src/server.js"
   },
   "dependencies": {
+    "@socket.io/redis-adapter": "^7.2.0",
     "bcryptjs": "^3.0.3",
+    "bullmq": "^5.73.4",
     "cloudinary": "^2.8.0",
     "cors": "^2.8.5",
     "dotenv": "^16.4.5",
     "express": "^4.21.2",
-    "express-rate-limit": "^7.4.0",
     "express-mongo-sanitize": "^2.2.0",
+    "express-rate-limit": "^7.4.0",
     "helmet": "^7.1.0",
     "jsonwebtoken": "^9.0.2",
     "mongodb": "^7.0.0",
     "mongoose": "^9.0.0",
     "multer": "^2.0.2",
     "nodemailer": "^7.0.11",
+    "redis": "^4.7.1",
     "socket.io": "^4.8.3",
     "swagger-jsdoc": "^6.2.8",
     "swagger-ui-express": "^5.0.1",
     "uuid": "^13.0.0",
-    "xlsx": "^0.18.5"
+    "xlsx": "^0.18.5",
+    "zod": "^4.3.6"
   },
   "devDependencies": {
     "nodemon": "^3.1.11"

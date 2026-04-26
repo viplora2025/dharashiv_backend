@@ -1,3 +1,5 @@
+// src/controllers/announcementController.js
+
 import {
   createAnnouncementService,
   updateAnnouncementService,
@@ -5,9 +7,9 @@ import {
   getAnnouncementByIdService,
   getAllAnnouncementsService
 } from "../services/announcementService.js";
-import { sendError, sendSuccess } from "../utils/response.js";
+import { sendSuccess } from "../utils/response.js";
 
-export const createAnnouncement = async (req, res) => {
+export const createAnnouncement = async (req, res, next) => {
   try {
     const doc = await createAnnouncementService(req);
     sendSuccess(res, {
@@ -16,42 +18,42 @@ export const createAnnouncement = async (req, res) => {
       data: doc
     });
   } catch (err) {
-    sendError(res, { status: 400, message: err.message });
+    next(err);
   }
 };
 
-export const updateAnnouncement = async (req, res) => {
+export const updateAnnouncement = async (req, res, next) => {
   try {
     const doc = await updateAnnouncementService(req.params.id, req);
     sendSuccess(res, { message: "Announcement updated", data: doc });
   } catch (err) {
-    sendError(res, { status: 400, message: err.message });
+    next(err);
   }
 };
 
-export const deleteAnnouncement = async (req, res) => {
+export const deleteAnnouncement = async (req, res, next) => {
   try {
     await deleteAnnouncementService(req.params.id);
     sendSuccess(res, { message: "Announcement deleted" });
   } catch (err) {
-    sendError(res, { status: 400, message: err.message });
+    next(err);
   }
 };
 
-export const getAnnouncementById = async (req, res) => {
+export const getAnnouncementById = async (req, res, next) => {
   try {
-    const doc = await getAnnouncementByIdService(req.params.id);
+    const doc = await getAnnouncementByIdService(req.params.id, req);
     sendSuccess(res, { data: doc });
   } catch (err) {
-    sendError(res, { status: 404, message: err.message });
+    next(err);
   }
 };
 
-export const getAllAnnouncements = async (req, res) => {
+export const getAllAnnouncements = async (req, res, next) => {
   try {
-    const docs = await getAllAnnouncementsService();
+    const docs = await getAllAnnouncementsService(req);
     sendSuccess(res, { data: docs });
   } catch (err) {
-    sendError(res, { status: 500, message: err.message });
+    next(err);
   }
 };

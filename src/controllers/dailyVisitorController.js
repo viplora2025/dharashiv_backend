@@ -1,3 +1,5 @@
+// src/controllers/dailyVisitorController.js
+
 import {
   createDailyVisitorService,
   updateDailyVisitorService,
@@ -9,9 +11,10 @@ import {
   getDailyVisitorsByMonthService,
   getDailyVisitorsByYearService
 } from "../services/dailyVisitorService.js";
-import { sendError, sendSuccess } from "../utils/response.js";
+import { parsePageLimit } from "../utils/queryValidation.js";
+import { sendSuccess } from "../utils/response.js";
 
-export const createDailyVisitor = async (req, res) => {
+export const createDailyVisitor = async (req, res, next) => {
   try {
     const doc = await createDailyVisitorService(req.body);
     sendSuccess(res, {
@@ -20,11 +23,11 @@ export const createDailyVisitor = async (req, res) => {
       data: doc
     });
   } catch (err) {
-    sendError(res, { status: 400, message: err.message });
+    next(err);
   }
 };
 
-export const updateDailyVisitor = async (req, res) => {
+export const updateDailyVisitor = async (req, res, next) => {
   try {
     const doc = await updateDailyVisitorService(
       req.params.id,
@@ -32,71 +35,106 @@ export const updateDailyVisitor = async (req, res) => {
     );
     sendSuccess(res, { message: "Daily visitor updated", data: doc });
   } catch (err) {
-    sendError(res, { status: 400, message: err.message });
+    next(err);
   }
 };
 
-export const deleteDailyVisitor = async (req, res) => {
+export const deleteDailyVisitor = async (req, res, next) => {
   try {
     await deleteDailyVisitorService(req.params.id);
     sendSuccess(res, { message: "Daily visitor deleted" });
   } catch (err) {
-    sendError(res, { status: 400, message: err.message });
+    next(err);
   }
 };
 
-export const getDailyVisitorById = async (req, res) => {
+export const getDailyVisitorById = async (req, res, next) => {
   try {
     const doc = await getDailyVisitorByIdService(req.params.id);
     sendSuccess(res, { data: doc });
   } catch (err) {
-    sendError(res, { status: 404, message: err.message });
+    next(err);
   }
 };
 
-export const getAllDailyVisitors = async (req, res) => {
+export const getAllDailyVisitors = async (req, res, next) => {
   try {
-    const docs = await getAllDailyVisitorsService();
-    sendSuccess(res, { data: docs });
+    const { page, limit } = parsePageLimit(req.query);
+    const result = await getAllDailyVisitorsService(page, limit);
+    sendSuccess(res, {
+      page,
+      limit,
+      totalRecords: result.totalRecords,
+      totalPages: Math.ceil(result.totalRecords / limit),
+      data: result.data
+    });
   } catch (err) {
-    sendError(res, { status: 500, message: err.message });
+    next(err);
   }
 };
 
-export const getDailyVisitorsByDate = async (req, res) => {
+export const getDailyVisitorsByDate = async (req, res, next) => {
   try {
-    const docs = await getDailyVisitorsByDateService(req.params.date);
-    sendSuccess(res, { data: docs });
+    const { page, limit } = parsePageLimit(req.query);
+    const result = await getDailyVisitorsByDateService(req.params.date, page, limit);
+    sendSuccess(res, {
+      page,
+      limit,
+      totalRecords: result.totalRecords,
+      totalPages: Math.ceil(result.totalRecords / limit),
+      data: result.data
+    });
   } catch (err) {
-    sendError(res, { status: 400, message: err.message });
+    next(err);
   }
 };
 
-export const getDailyVisitorsByWeek = async (req, res) => {
+export const getDailyVisitorsByWeek = async (req, res, next) => {
   try {
-    const docs = await getDailyVisitorsByWeekService(req.query.date);
-    sendSuccess(res, { data: docs });
+    const { page, limit } = parsePageLimit(req.query);
+    const result = await getDailyVisitorsByWeekService(req.query.date, page, limit);
+    sendSuccess(res, {
+      page,
+      limit,
+      totalRecords: result.totalRecords,
+      totalPages: Math.ceil(result.totalRecords / limit),
+      data: result.data
+    });
   } catch (err) {
-    sendError(res, { status: 400, message: err.message });
+    next(err);
   }
 };
 
-export const getDailyVisitorsByMonth = async (req, res) => {
+export const getDailyVisitorsByMonth = async (req, res, next) => {
   try {
     const { year, month } = req.params;
-    const docs = await getDailyVisitorsByMonthService(year, month);
-    sendSuccess(res, { data: docs });
+    const { page, limit } = parsePageLimit(req.query);
+    const result = await getDailyVisitorsByMonthService(year, month, page, limit);
+    sendSuccess(res, {
+      page,
+      limit,
+      totalRecords: result.totalRecords,
+      totalPages: Math.ceil(result.totalRecords / limit),
+      data: result.data
+    });
   } catch (err) {
-    sendError(res, { status: 400, message: err.message });
+    next(err);
   }
 };
 
-export const getDailyVisitorsByYear = async (req, res) => {
+export const getDailyVisitorsByYear = async (req, res, next) => {
   try {
     const { year } = req.params;
-    const docs = await getDailyVisitorsByYearService(year);
-    sendSuccess(res, { data: docs });
+    const { page, limit } = parsePageLimit(req.query);
+    const result = await getDailyVisitorsByYearService(year, page, limit);
+    sendSuccess(res, {
+      page,
+      limit,
+      totalRecords: result.totalRecords,
+      totalPages: Math.ceil(result.totalRecords / limit),
+      data: result.data
+    });
   } catch (err) {
-    sendError(res, { status: 400, message: err.message });
+    next(err);
   }
 };

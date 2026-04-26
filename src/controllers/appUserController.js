@@ -66,8 +66,9 @@ export const updateMyProfile = async (req, res) => {
 /* ================= ADMIN ================= */
 export const getAllUsers = async (req, res) => {
   try {
-    const users = await appUserService.getAllUsersService();
-    sendSuccess(res, { data: users });
+    const { page, limit, search } = req.query;
+    const result = await appUserService.getAllUsersService(page, limit, search);
+    sendSuccess(res, { data: result });
   } catch (err) {
     sendError(res, { status: 500, message: err.message });
   }
@@ -109,5 +110,17 @@ export const deleteUser = async (req, res) => {
     sendSuccess(res, { message: "User deleted" });
   } catch (err) {
     sendError(res, { status: 404, message: err.message });
+  }
+};
+
+export const toggleUserBlock = async (req, res) => {
+  try {
+    const user = await appUserService.toggleUserBlockService(req.params.id);
+    sendSuccess(res, {
+      message: user.isBlocked ? "User blocked" : "User unblocked",
+      user
+    });
+  } catch (err) {
+    sendError(res, { status: 400, message: err.message });
   }
 };

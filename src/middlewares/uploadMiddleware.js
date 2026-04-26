@@ -15,7 +15,13 @@ const fileFilter = (req, file, cb) => {
     "audio/mpeg",
     "audio/mp3",
     "audio/wav",
+    "audio/x-wav",
     "audio/webm",
+    "audio/ogg",
+    "audio/aac",
+    "audio/mp4",
+    "audio/m4a",
+    "audio/x-m4a",
   ];
 
   if (allowedTypes.includes(file.mimetype)) {
@@ -33,8 +39,8 @@ const fileFilter = (req, file, cb) => {
 const upload = multer({
   storage,
   limits: {
-    fileSize: 10 * 1024 * 1024, // 10MB
-    files: 5, // max 5 files per complaint (IMPORTANT)
+    fileSize: 15 * 1024 * 1024, // ✅ 15MB (voice safe)
+    files: 11, // ✅ 1 voice + 10 attachments max
   },
   fileFilter,
 });

@@ -4,31 +4,35 @@ import {
   refreshAccessTokenService,
   logoutService
 } from "../services/authService.js";
-import { sendError, sendSuccess } from "../utils/response.js";
+import { sendSuccess } from "../utils/response.js";
 
-/* ================= REFRESH ACCESS TOKEN ================= */
-export const refreshAccessToken = async (req, res) => {
+/* ================= REFRESH ACCESS TOKEN (Supports Rotation) ================= */
+export const refreshAccessToken = async (req, res, next) => {
   try {
     const { refreshToken } = req.body;
 
-    const newAccessToken =
+    const { accessToken, refreshToken: newRefreshToken } =
       await refreshAccessTokenService(refreshToken);
 
-    sendSuccess(res, { accessToken: newAccessToken });
+    sendSuccess(res, { 
+      accessToken, 
+      refreshToken: newRefreshToken,
+      message: "Token refreshed successfully" 
+    });
   } catch (err) {
-    sendError(res, { status: 403, message: err.message });
+    next(err); // ⬅️ Handle via global error middleware
   }
 };
 
 /* ================= LOGOUT ================= */
-export const logout = async (req, res) => {
+export const logout = async (req, res, next) => {
   try {
-    const { refreshToken } = req.body;
+    const { refreshToken, allDevices } = req.body;
 
-    await logoutService(refreshToken);
+    await logoutService(refreshToken, allDevices);
 
     sendSuccess(res, { message: "Logged out successfully" });
   } catch (err) {
-    sendError(res, { status: 400, message: err.message });
+    next(err); // ⬅️ Handle via global error middleware
   }
 };

@@ -9,18 +9,17 @@ const announcementSchema = new mongoose.Schema(
       trim: true
     },
     title: {
-      type: String,
-      required: true,
-      trim: true
+      en: { type: String, required: true, trim: true },
+      mr: { type: String, required: true, trim: true }
     },
     message: {
-      type: String,
-      required: true,
-      trim: true
+      en: { type: String, required: true, trim: true },
+      mr: { type: String, required: true, trim: true }
     },
     eventDate: {
       type: Date,
-      required: true
+      required: true,
+      index: true
     },
     eventTime: {
       type: String,
@@ -28,23 +27,26 @@ const announcementSchema = new mongoose.Schema(
       trim: true
     },
     location: {
-      type: String,
-      required: true,
-      trim: true
+      en: { type: String, required: true, trim: true },
+      mr: { type: String, required: true, trim: true }
     },
     type: {
-      type: String,
-      enum: ["Meeting", "Sabha", "Inauguration", "Public Notice", "Other"],
-      required: true
+      en: { type: String, required: true, trim: true },
+      mr: { type: String, required: true, trim: true }
     },
     imageUrl: {
+      type: String,
+      default: null
+    },
+    imagePublicId: {
       type: String,
       default: null
     },
     status: {
       type: String,
       enum: ["Draft", "Published"],
-      default: "Published"
+      default: "Published",
+      index: true
     },
     createdBy: {
       type: mongoose.Schema.Types.ObjectId,

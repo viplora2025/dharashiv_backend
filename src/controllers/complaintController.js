@@ -1,215 +1,134 @@
-import {
-  createComplaintService,
-  getAllComplaintsService,
-  getComplaintByIdService,
-  getComplaintsByComplainerService,
-  updateComplaintStatusService,
-  trackComplaintService,
-  getComplaintsByUserService,
-  addChatMessageService,
-  getComplaintChatService,
-  getRecentComplaintsService
-} from "../services/complaintService.js";
-import {
-  parsePageLimit,
-  validateComplaintStatus,
-  validateObjectId
-} from "../utils/queryValidation.js";
-import { sendError, sendSuccess } from "../utils/response.js";
+// src/controllers/complaintController.js
 
-/* ================= CREATE COMPLAINT ================= */
-export const createComplaint = async (req, res) => {
+import * as complaintService from "../services/complaintService.js";
+import { sendSuccess } from "../utils/response.js";
+
+export const createComplaint = async (req, res, next) => {
   try {
-    const complaint = await createComplaintService(req);
+    const complaint = await complaintService.createComplaintService(req);
     sendSuccess(res, {
       status: 201,
-      message: "Complaint created successfully",
-      complaintId: complaint._id
+      message: "Complaint registered successfully",
+      data: complaint
     });
   } catch (err) {
-    sendError(res, { status: 400, message: err.message });
+    next(err);
   }
 };
 
-/* ================= GET ALL COMPLAINTS ================= */
-export const getAllComplaints = async (req, res) => {
+export const getAllComplaints = async (req, res, next) => {
   try {
-    const { page, limit } = parsePageLimit(req.query);
-
-    if (req.query.status) {
-      validateComplaintStatus(req.query.status);
-    }
-    if (req.query.department) {
-      validateObjectId(req.query.department, "department");
-    }
-    if (req.query.filedBy) {
-      validateObjectId(req.query.filedBy, "filedBy");
-    }
-    if (req.query.talukaId) {
-      validateObjectId(req.query.talukaId, "talukaId");
-    }
-
-    let accessibleTalukas = null;
-
-    // 🔒 If Admin, restrict to assigned talukas
-    if (req.role === "admin") {
-      accessibleTalukas = req.user.assignedTaluka || []; // Array of ObjectIds
-    }
-
-    const { data, totalRecords } = await getAllComplaintsService(
-      { ...req.query, page, limit },
-      accessibleTalukas
-    );
-
-    sendSuccess(res, {
-      page,
-      limit,
-      totalRecords,
-      totalPages: Math.ceil(totalRecords / limit),
-      data
-    });
+    const accessibleTalukas = req.role === "admin" ? (req.user.assignedTaluka || []) : null;
+    const result = await complaintService.getAllComplaintsService(req.query, accessibleTalukas);
+    sendSuccess(res, { data: result.data, totalRecords: result.totalRecords });
   } catch (err) {
-    sendError(res, { status: 500, message: err.message });
+    next(err);
   }
 };
 
-/* ================= GET COMPLAINT BY ID ================= */
-export const getComplaintById = async (req, res) => {
+export const getComplaintById = async (req, res, next) => {
   try {
-    const data = await getComplaintByIdService(req.params.id, req);
-    sendSuccess(res, { data });
+    const complaint = await complaintService.getComplaintByIdService(req.params.id, req);
+    sendSuccess(res, { data: complaint });
   } catch (err) {
-    sendError(res, { status: 400, message: err.message });
+    next(err);
   }
 };
 
-/* ================= GET BY COMPLAINER ================= */
-export const getComplaintsByComplainer = async (req, res) => {
+export const getComplaintsByComplainer = async (req, res, next) => {
   try {
-    const { page, limit } = parsePageLimit(req.query);
-
-    validateObjectId(req.params.complainerId, "complainerId");
-    const result = await getComplaintsByComplainerService(
+    const { page = 1, limit = 10 } = req.query;
+    const result = await complaintService.getComplaintsByComplainerService(
       req.params.complainerId,
       req,
-      page,
-      limit
+      Number(page),
+      Number(limit)
     );
-
-    sendSuccess(res, {
-      page: Number(page),
-      limit: Number(limit),
-      totalRecords: result.totalRecords,
-      totalPages: Math.ceil(result.totalRecords / limit),
-      data: result.data
-    });
+    sendSuccess(res, { data: result.data, totalRecords: result.totalRecords });
   } catch (err) {
-    sendError(res, { status: 400, message: err.message });
+    next(err);
   }
 };
 
-/* ================= UPDATE STATUS ================= */
-export const updateComplaintStatus = async (req, res) => {
+export const updateComplaintStatus = async (req, res, next) => {
   try {
-    await updateComplaintStatusService(
+    const complaint = await complaintService.updateComplaintStatusService(
       req.params.id,
       req.body.status,
       req
     );
-    sendSuccess(res, { message: "Complaint status updated" });
+    sendSuccess(res, { message: "Status updated successfully", data: complaint });
   } catch (err) {
-    sendError(res, { status: 400, message: err.message });
+    next(err);
   }
 };
 
-/* ================= PUBLIC TRACK ================= */
-export const trackComplaint = async (req, res) => {
+export const trackComplaint = async (req, res, next) => {
   try {
-    const data = await trackComplaintService(req.params.complaintId);
+    const data = await complaintService.trackComplaintService(req.params.complaintId);
     sendSuccess(res, { data });
   } catch (err) {
-    sendError(res, { status: 404, message: err.message });
+    next(err);
   }
 };
 
-/* ================= USER MY COMPLAINTS ================= */
-export const getMyComplaints = async (req, res) => {
+export const getComplaintsByUser = async (req, res, next) => {
   try {
-    const { page, limit } = parsePageLimit(req.query);
-    const { status } = req.query;
-    if (status) validateComplaintStatus(status);
-
-    const result = await getComplaintsByUserService(
+    const { page = 1, limit = 10, status } = req.query;
+    const result = await complaintService.getComplaintsByUserService(
       req,
-      page,
-      limit,
+      Number(page),
+      Number(limit),
       status
     );
+    sendSuccess(res, { data: result.data, totalRecords: result.totalRecords });
+  } catch (err) {
+    next(err);
+  }
+};
 
+export const addChatMessage = async (req, res, next) => {
+  try {
+    const result = await complaintService.addChatMessageService(req.params.id, req);
     sendSuccess(res, {
+      status: 201,
+      message: "Message added successfully",
+      data: result
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
+export const getComplaintChat = async (req, res, next) => {
+  try {
+    const chat = await complaintService.getComplaintChatService(req.params.id, req);
+    sendSuccess(res, { data: chat });
+  } catch (err) {
+    next(err);
+  }
+};
+
+export const getRecentComplaints = async (req, res, next) => {
+  try {
+    const { page = 1, limit = 10 } = req.query;
+    const accessibleTalukas = req.role === "admin" ? (req.user.assignedTaluka || []) : null;
+    const result = await complaintService.getRecentComplaintsService({
       page: Number(page),
       limit: Number(limit),
-      totalRecords: result.totalRecords,
-      totalPages: Math.ceil(result.totalRecords / limit),
-      data: result.data
-    });
-  } catch (err) {
-    sendError(res, { status: 500, message: err.message });
-  }
-};
-
-/* ================= ADD CHAT MESSAGE ================= */
-export const addChatMessage = async (req, res) => {
-  try {
-    await addChatMessageService(req.params.id, req);
-    sendSuccess(res, { message: "Message sent successfully" });
-  } catch (err) {
-    sendError(res, { status: 400, message: err.message });
-  }
-};
-
-/* ================= GET CHAT ================= */
-export const getComplaintChat = async (req, res) => {
-  try {
-    const data = await getComplaintChatService(req.params.id, req);
-    sendSuccess(res, { data });
-  } catch (err) {
-    sendError(res, { status: 400, message: err.message });
-  }
-};
-
-
-
-
-/* ================= RECENT COMPLAINTS ================= */
-export const getRecentComplaints = async (req, res) => {
-  try {
-    const pageRaw = req.query.page ?? "1";
-    const page = Number(pageRaw);
-    if (!Number.isInteger(page) || page < 1) {
-      throw new Error("Invalid page");
-    }
-
-    let accessibleTalukas = null;
-    if (req.role === "admin") {
-      accessibleTalukas = req.user.assignedTaluka || [];
-    }
-
-    const result = await getRecentComplaintsService({
-      page: Number(page),
-      limit: 20,
       accessibleTalukas
     });
-
-    sendSuccess(res, {
-      page: Number(page),
-      limit: 20,
-      totalRecords: result.totalRecords,
-      totalPages: Math.ceil(result.totalRecords / 20),
-      stats: result.stats,
-      data: result.data
-    });
+    sendSuccess(res, { ...result });
   } catch (err) {
-    sendError(res, { status: 500, message: err.message });
+    next(err);
+  }
+};
+
+export const forwardToDepartment = async (req, res, next) => {
+  try {
+    const result = await complaintService.forwardComplaintToDeptService(req.params.id, req);
+    sendSuccess(res, { message: result.message, data: { email: result.email } });
+  } catch (err) {
+    next(err);
   }
 };

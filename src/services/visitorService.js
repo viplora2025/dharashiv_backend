@@ -1,221 +1,156 @@
+// src/services/visitorService.js
+
 import Visitor from "../models/visitorModel.js";
 import Event from "../models/eventModel.js";
-import mongoose from "mongoose";
 import { VisitorStatus, RegistrationType, EventStatus } from "../config/constants.js";
+import { notifyAdminsService } from "./notificationService.js";
+
 
 /* =========================
    REGISTER VISITOR (ONLINE)
 ========================= */
 export const registerVisitorOnlineService = async (data) => {
-  try {
-    const {
-      eventId,
-      visitorName,
-      phone,
-      village,
-      taluka,
-      issue,
-      appUser
-    } = data;
+  const { eventId, visitorName, phone, village, taluka, issue, appUser } = data;
 
-    if (!mongoose.Types.ObjectId.isValid(eventId)) {
-      throw new Error("Invalid eventId");
-    }
+  if (!appUser) throw new Error("appUser is required for online registration");
 
-    if (!visitorName || !village || !taluka || !issue) {
-      throw new Error("Required fields missing");
-    }
+  // 🔢 Atomic Token Generation (blocked for Cancelled/Completed)
+  const event = await Event.findOneAndUpdate(
+    { _id: eventId, status: { $nin: [EventStatus.CANCELLED, EventStatus.COMPLETED] } },
+    { $inc: { lastTokenNo: 1 } },
+    { new: true }
+  );
 
-    if (!appUser) {
-      throw new Error("appUser is required for online registration");
-    }
-
-    // 🔢 Atomic Token Generation (blocked for Cancelled/Completed)
-    const event = await Event.findOneAndUpdate(
-      { _id: eventId, status: { $nin: [EventStatus.CANCELLED, EventStatus.COMPLETED] } },
-      { $inc: { lastTokenNo: 1 } },
-      { new: true }
-    );
-
-    if (!event) {
-      const exists = await Event.findById(eventId).select("status");
-      if (!exists) throw new Error("Event not found");
-      throw new Error("Event is not open for registration");
-    }
-
-    const nextTokenNo = event.lastTokenNo;
-
-    const visitor = await Visitor.create({
-      eventId,
-      visitorName,
-      phone,
-      village,
-      taluka,
-      issue,
-      registrationType: RegistrationType.ONLINE,
-      tokenNo: nextTokenNo,
-      appUser
-    });
-
-    return visitor;
-  } catch (error) {
-    throw error;
+  if (!event) {
+    const exists = await Event.findById(eventId).select("status");
+    if (!exists) throw new Error("Event not found");
+    throw new Error("Event is not open for registration");
   }
+
+  const visitor = await Visitor.create({
+    eventId,
+    visitorName,
+    phone,
+    village,
+    taluka,
+    issue,
+    registrationType: RegistrationType.ONLINE,
+    tokenNo: event.lastTokenNo,
+    appUser
+  });
+
+  // Notify admins
+  notifyAdminsService({
+    talukaId: visitor.taluka,
+    title: {
+      en: "New Visitor Registered",
+      mr: "नवीन अभ्यागत नोंदणीकृत"
+    },
+    message: {
+      en: `${visitor.visitorName} has registered for token #${visitor.tokenNo}`,
+      mr: `${visitor.visitorName} यांनी टोकन #${visitor.tokenNo} साठी नोंदणी केली आहे`
+    },
+    type: "visitor_new",
+    relatedId: visitor._id
+  }).catch(err => console.error("Visitor notification failed:", err.message));
+
+  return visitor;
+
 };
 
 /* =========================
    REGISTER VISITOR (OFFLINE)
 ========================= */
 export const registerVisitorOfflineService = async (data) => {
-  try {
-    const {
-      eventId,
-      visitorName,
-      phone,
-      village,
-      taluka,
-      issue,
-      registeredBy
-    } = data;
+  const { eventId, visitorName, phone, village, taluka, issue, registeredBy } = data;
 
-    if (!mongoose.Types.ObjectId.isValid(eventId)) {
-      throw new Error("Invalid eventId");
-    }
+  if (!registeredBy) throw new Error("registeredBy is required for offline registration");
 
-    if (!visitorName || !village || !taluka || !issue) {
-      throw new Error("Required fields missing");
-    }
+  const event = await Event.findOneAndUpdate(
+    { _id: eventId, status: { $nin: [EventStatus.CANCELLED, EventStatus.COMPLETED] } },
+    { $inc: { lastTokenNo: 1 } },
+    { new: true }
+  );
 
-    if (!registeredBy) {
-      throw new Error("registeredBy is required for offline registration");
-    }
-
-    // 🔢 Atomic Token Generation (blocked for Cancelled/Completed)
-    const event = await Event.findOneAndUpdate(
-      { _id: eventId, status: { $nin: [EventStatus.CANCELLED, EventStatus.COMPLETED] } },
-      { $inc: { lastTokenNo: 1 } },
-      { new: true }
-    );
-
-    if (!event) {
-      const exists = await Event.findById(eventId).select("status");
-      if (!exists) throw new Error("Event not found");
-      throw new Error("Event is not open for registration");
-    }
-
-    const nextTokenNo = event.lastTokenNo;
-
-    const visitor = await Visitor.create({
-      eventId,
-      visitorName,
-      phone,
-      village,
-      taluka,
-      issue,
-      registrationType: RegistrationType.OFFLINE,
-      tokenNo: nextTokenNo,
-      registeredBy
-    });
-
-    return visitor;
-  } catch (error) {
-    throw error;
+  if (!event) {
+    const exists = await Event.findById(eventId).select("status");
+    if (!exists) throw new Error("Event not found");
+    throw new Error("Event is not open for registration");
   }
+
+  const visitor = await Visitor.create({
+    eventId,
+    visitorName,
+    phone,
+    village,
+    taluka,
+    issue,
+    registrationType: RegistrationType.OFFLINE,
+    tokenNo: event.lastTokenNo,
+    registeredBy
+  });
+
+  return visitor;
 };
 
 /* =========================
    GET ALL VISITORS BY EVENT
-   (registration sequence)
 ========================= */
 export const getVisitorsByEventService = async (eventId) => {
-  try {
-    if (!mongoose.Types.ObjectId.isValid(eventId)) {
-      throw new Error("Invalid eventId");
-    }
-
-    return await Visitor.find({ eventId })
-      .sort({ tokenNo: 1 }); // sequence wise
-  } catch (error) {
-    throw error;
-  }
+  return await Visitor.find({ eventId })
+    .populate("village", "name")
+    .populate("taluka", "name")
+    .sort({ tokenNo: 1 });
 };
 
 /* =========================
    GET VISITORS BY APP USER
 ========================= */
 export const getVisitorsByAppUserService = async (appUserId) => {
-  try {
-    if (!mongoose.Types.ObjectId.isValid(appUserId)) {
-      throw new Error("Invalid appUserId");
-    }
-
-    return await Visitor.find({ appUser: appUserId })
-      .sort({ registeredAt: -1 });
-  } catch (error) {
-    throw error;
-  }
+  return await Visitor.find({ appUser: appUserId })
+    .populate("village", "name")
+    .populate("taluka", "name")
+    .sort({ registeredAt: -1 });
 };
 
 /* =========================
-   GET VISITOR BY MONGO ID
+   GET VISITOR BY ID
 ========================= */
 export const getVisitorByIdService = async (id) => {
-  try {
-    if (!mongoose.Types.ObjectId.isValid(id)) {
-      throw new Error("Invalid visitor id");
-    }
+  const visitor = await Visitor.findById(id)
+    .populate("village", "name")
+    .populate("taluka", "name");
 
-    const visitor = await Visitor.findById(id);
-
-    if (!visitor) {
-      throw new Error("Visitor not found");
-    }
-
-    return visitor;
-  } catch (error) {
-    throw error;
-  }
+  if (!visitor) throw new Error("Visitor not found");
+  return visitor;
 };
 
-
-
+/* =========================
+   UPDATE VISITOR STATUS
+========================= */
 export const updateVisitorStatusService = async (visitorId, newStatus) => {
-  try {
-    if (!mongoose.Types.ObjectId.isValid(visitorId)) {
-      throw new Error("Invalid visitor id");
-    }
+  const visitor = await Visitor.findById(visitorId);
+  if (!visitor) throw new Error("Visitor not found");
 
-    const visitor = await Visitor.findById(visitorId);
+  const currentStatusKey = visitor.status.en;
+  const newStatusKey = newStatus.en;
 
-    if (!visitor) {
-      throw new Error("Visitor not found");
-    }
+  // 🔒 Allowed transitions logic (comparing English keys)
+  const allowedTransitions = {
+    [VisitorStatus.REGISTERED]: [VisitorStatus.IN_PROGRESS],
+    [VisitorStatus.IN_PROGRESS]: [VisitorStatus.VISITED, VisitorStatus.ABSENT]
+  };
 
-    const currentStatus = visitor.status;
-
-    // 🔒 Allowed transitions
-    const allowedTransitions = {
-      [VisitorStatus.REGISTERED]: [VisitorStatus.IN_PROGRESS],
-      [VisitorStatus.IN_PROGRESS]: [VisitorStatus.VISITED, VisitorStatus.ABSENT]
-    };
-
-    if (!allowedTransitions[currentStatus]) {
-      throw new Error(
-        `Status cannot be changed once it is ${currentStatus}`
-      );
-    }
-
-    if (!allowedTransitions[currentStatus].includes(newStatus)) {
-      throw new Error(
-        `Invalid status change from ${currentStatus} to ${newStatus}`
-      );
-    }
-
-    visitor.status = newStatus;
-    await visitor.save();
-
-    return visitor;
-  } catch (error) {
-    throw error;
+  if (!allowedTransitions[currentStatusKey]) {
+    throw new Error(`Status cannot be changed from ${currentStatusKey}`);
   }
+
+  if (!allowedTransitions[currentStatusKey].includes(newStatusKey)) {
+    throw new Error(`Invalid status transition from ${currentStatusKey} to ${newStatusKey}`);
+  }
+
+  visitor.status = newStatus;
+  await visitor.save();
+
+  return visitor;
 };

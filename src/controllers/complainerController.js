@@ -1,180 +1,99 @@
-import {
-  createComplainerService,
-  getAllComplainersService,
-  getComplainerByIdService,
-  getComplainersByAppUserService,
-  updateComplainerService,
-  deleteComplainerService,
-  getComplainersByUserAndTalukaService,
-  getComplainersByTalukaService
-} from "../services/complainerService.js";
-import { parsePageLimit, validateObjectId } from "../utils/queryValidation.js";
-import { sendError, sendSuccess } from "../utils/response.js";
+// src/controllers/complainerController.js
 
-// CREATE
-export const createComplainer = async (req, res) => {
+import * as complainerService from "../services/complainerService.js";
+import { sendSuccess } from "../utils/response.js";
+
+export const createComplainer = async (req, res, next) => {
   try {
-    // 🔒 addedBy always from logged-in user
-    const addedBy = req.user?._id;
-
-    const complainer = await createComplainerService({
-      name: req.body.name,
-      phone: req.body.phone,
-      taluka: req.body.taluka,
-      village: req.body.village,
-      addedBy
+    const complainer = await complainerService.createComplainerService({
+      ...req.body,
+      addedBy: req.user?._id
     });
-
     sendSuccess(res, {
       status: 201,
-      message: "Complainer created successfully",
+      message: "Complainer registered successfully",
       data: complainer
     });
   } catch (err) {
-    sendError(res, { status: 400, message: err.message });
+    next(err);
   }
 };
 
-// GET ALL
-export const getAllComplainers = async (req, res) => {
+export const getAllComplainers = async (req, res, next) => {
   try {
-    const { page, limit } = parsePageLimit(req.query);
-    if (req.query.talukaId) {
-      validateObjectId(req.query.talukaId, "talukaId");
-    }
-
-    let accessibleTalukas = null;
-
-    // 🔒 Admin restriction
-    if (req.role === "admin") {
-      accessibleTalukas = req.user.assignedTaluka || [];
-    }
-
-    const { data, totalRecords } = await getAllComplainersService(
-      { ...req.query, page, limit },
+    const accessibleTalukas = req.role === "admin" ? (req.user.assignedTaluka || []) : null;
+    const result = await complainerService.getAllComplainersService(
+      req.query,
       accessibleTalukas
     );
-
-    sendSuccess(res, {
-      page,
-      limit,
-      totalRecords,
-      totalPages: Math.ceil(totalRecords / limit),
-      data
-    });
+    sendSuccess(res, { data: result.data, totalRecords: result.totalRecords });
   } catch (err) {
-    sendError(res, { status: 500, message: err.message });
+    next(err);
   }
 };
 
-
-// GET ONE
-export const getComplainerById = async (req, res) => {
+export const getComplainerById = async (req, res, next) => {
   try {
-    const data = await getComplainerByIdService(req.params.id, req);
-    sendSuccess(res, { data });
+    const complainer = await complainerService.getComplainerByIdService(req.params.id, req);
+    sendSuccess(res, { data: complainer });
   } catch (err) {
-    sendError(res, { status: 400, message: err.message });
+    next(err);
   }
 };
 
-
-// GET BY USER
-export const getComplainersByAppUser = async (req, res) => {
+export const getComplainersByAppUser = async (req, res, next) => {
   try {
-    if (req.role === "user") {
-      const requestedId = req.params.userId;
-      const myId = req.user?._id?.toString();
-      if (!myId || requestedId != myId) {
-        return sendError(res, { status: 403, message: "Access denied" });
-      }
-    }
-
-    const data = await getComplainersByAppUserService(req.params.userId);
-    sendSuccess(res, { status: 200, ...data });
+    const complainers = await complainerService.getComplainersByAppUserService(req.user._id);
+    sendSuccess(res, { data: complainers });
   } catch (err) {
-    sendError(res, { status: 400, message: err.message });
+    next(err);
   }
 };
 
-// UPDATE
-export const updateComplainer = async (req, res) => {
+export const updateComplainer = async (req, res, next) => {
   try {
-    const data = await updateComplainerService(
+    const complainer = await complainerService.updateComplainerService(
       req.params.id,
-      req.body
+      req.body,
+      req
     );
-
-    sendSuccess(res, {
-      status: 200,
-      message: "Complainer updated successfully",
-      data
-    });
+    sendSuccess(res, { message: "Complainer updated successfully", data: complainer });
   } catch (err) {
-    sendError(res, { status: 400, message: err.message });
+    next(err);
   }
 };
 
-// DELETE
-export const deleteComplainer = async (req, res) => {
+export const deleteComplainer = async (req, res, next) => {
   try {
-    await deleteComplainerService(req.params.id);
-    sendSuccess(res, {
-      status: 200,
-      message: "Complainer deleted successfully"
-    });
+    await complainerService.deleteComplainerService(req.params.id, req);
+    sendSuccess(res, { message: "Complainer deleted successfully" });
   } catch (err) {
-    sendError(res, { status: 404, message: err.message });
+    next(err);
   }
 };
 
-
-
-// ==========================
-// Get Complainers by User + Taluka 
-// ==========================
-export const getComplainersByUserAndTaluka = async (req, res) => {
+export const getComplainersByUserAndTaluka = async (req, res, next) => {
   try {
-    const { userId, talukaId } = req.params;
-
-    if (req.role === "user") {
-      const myId = req.user?._id?.toString();
-      if (!myId || userId != myId) {
-        return sendError(res, { status: 403, message: "Access denied" });
-      }
-    }
-
-    const data = await getComplainersByUserAndTalukaService(
-      userId,
-      talukaId
+    const result = await complainerService.getComplainersByUserAndTalukaService(
+      req.user._id,
+      req.params.talukaId
     );
-
-    sendSuccess(res, { status: 200, ...data });
+    sendSuccess(res, { data: result.data, totalRecords: result.totalRecords });
   } catch (err) {
-    sendError(res, { status: 400, message: err.message });
+    next(err);
   }
 };
 
-
-
-// ==========================
-// Get Complainers by Taluka (with pagination)
-// ==========================
-export const getComplainersByTaluka = async (req, res) => {
+export const getComplainersByTaluka = async (req, res, next) => {
   try {
-    const { talukaId } = req.params;
-
-    validateObjectId(talukaId, "talukaId");
-    const { page, limit } = parsePageLimit(req.query);
-
-    const data = await getComplainersByTalukaService(
-      talukaId,
-      page,
-      limit
+    const { page = 1, limit = 10 } = req.query;
+    const result = await complainerService.getComplainersByTalukaService(
+      req.params.talukaId,
+      Number(page),
+      Number(limit)
     );
-
-    sendSuccess(res, { status: 200, ...data });
+    sendSuccess(res, { ...result });
   } catch (err) {
-    sendError(res, { status: 400, message: err.message });
+    next(err);
   }
 };

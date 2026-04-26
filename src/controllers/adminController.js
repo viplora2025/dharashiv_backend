@@ -1,10 +1,10 @@
 // src/controllers/adminController.js
 
 import * as adminService from "../services/adminService.js";
-import { sendError, sendSuccess } from "../utils/response.js";
+import { sendSuccess } from "../utils/response.js";
 
-/* ================= REGISTER ================= */
-export const registerAdmin = async (req, res) => {
+/* ================= REGISTER (SuperAdmin Only Logic in Routes) ================= */
+export const registerAdmin = async (req, res, next) => {
   try {
     const data = await adminService.registerAdminService(req.body);
     sendSuccess(res, {
@@ -13,80 +13,80 @@ export const registerAdmin = async (req, res) => {
       ...data
     });
   } catch (err) {
-    sendError(res, { status: 400, message: err.message });
+    next(err);
   }
 };
 
 /* ================= LOGIN ================= */
-export const loginAdmin = async (req, res) => {
+export const loginAdmin = async (req, res, next) => {
   try {
     const data = await adminService.loginAdminService(req.body);
     sendSuccess(res, { message: "Login successful", ...data });
   } catch (err) {
-    sendError(res, { status: 401, message: err.message });
+    next(err);
   }
 };
 
 /* ================= PASSWORD FLOW ================= */
-export const forgotPassword = async (req, res) => {
+export const forgotPassword = async (req, res, next) => {
   try {
     await adminService.forgotPasswordService(req.body.email);
     sendSuccess(res, { message: "OTP sent to email" });
   } catch (err) {
-    sendError(res, { status: 400, message: err.message });
+    next(err);
   }
 };
 
-export const resetPassword = async (req, res) => {
+export const resetPassword = async (req, res, next) => {
   try {
     await adminService.resetPasswordService(req.body);
     sendSuccess(res, { message: "Password reset successful" });
   } catch (err) {
-    sendError(res, { status: 400, message: err.message });
+    next(err);
   }
 };
 
-export const resendOtp = async (req, res) => {
+export const resendOtp = async (req, res, next) => {
   try {
     await adminService.resendOtpService(req.body.email);
     sendSuccess(res, { message: "OTP resent" });
   } catch (err) {
-    sendError(res, { status: 400, message: err.message });
+    next(err);
   }
 };
 
 /* ================= CRUD ================= */
-export const getAdminById = async (req, res) => {
+export const getAdminById = async (req, res, next) => {
   try {
     const admin = await adminService.getAdminByIdService(req.params.id);
     sendSuccess(res, { data: admin });
   } catch (err) {
-    sendError(res, { status: 400, message: err.message });
+    next(err);
   }
 };
 
-export const getAdminByPhone = async (req, res) => {
+export const getAdminByPhone = async (req, res, next) => {
   try {
     const admin = await adminService.getAdminByPhoneService(req.params.phone);
     sendSuccess(res, { data: admin });
   } catch (err) {
-    sendError(res, { status: 400, message: err.message });
+    next(err);
   }
 };
 
-export const getAllAdmins = async (req, res) => {
+export const getAllAdmins = async (req, res, next) => {
   try {
     const admins = await adminService.getAllAdminsService();
     sendSuccess(res, { data: admins });
   } catch (err) {
-    sendError(res, { status: 500, message: err.message });
+    next(err);
   }
 };
 
-export const updateAdmin = async (req, res) => {
+export const updateAdmin = async (req, res, next) => {
   try {
     // Only superadmin can change role or assignedTaluka
-    if (req.role !== "superadmin") {
+    if (req.role !== "superadmin" && req.body) {
       delete req.body.role;
       delete req.body.assignedTaluka;
     }
@@ -97,15 +97,15 @@ export const updateAdmin = async (req, res) => {
     );
     sendSuccess(res, { message: "Admin updated", admin });
   } catch (err) {
-    sendError(res, { status: 400, message: err.message });
+    next(err);
   }
 };
 
-export const deleteAdmin = async (req, res) => {
+export const deleteAdmin = async (req, res, next) => {
   try {
     await adminService.deleteAdminService(req.params.id);
     sendSuccess(res, { message: "Admin deleted" });
   } catch (err) {
-    sendError(res, { status: 400, message: err.message });
+    next(err);
   }
 };

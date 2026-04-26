@@ -11,23 +11,40 @@ import {
   getUserById,
   getUserByPhone,
   updateUserByAdmin,
-  deleteUser
+  deleteUser,
+  toggleUserBlock
 } from "../controllers/appUserController.js";
-import { auth, userOnly, staffOnly} from "../middlewares/authMiddleware.js";
+import { auth, userOnly, staffOnly } from "../middlewares/authMiddleware.js";
 import {
   userLoginLimiter,
   userRegisterLimiter,
   userForgotLimiter
 } from "../middlewares/rateLimit.js";
+import {
+  registerUserSchema,
+  loginUserSchema,
+  resetPasswordSchema,
+} from "../validations/userValidation.js";
+import validate from "../middlewares/validateMiddleware.js";
 
 const router = express.Router();
 
-router.post("/register", userRegisterLimiter, registerUser);
-router.post("/login", userLoginLimiter, loginUser);
+router.post(
+  "/register",
+  userRegisterLimiter,
+  validate(registerUserSchema),
+  registerUser
+);
+router.post("/login", userLoginLimiter, validate(loginUserSchema), loginUser);
 
 // forgot password
-router.post("/forgot/question", userForgotLimiter, getSecretQuestion);
-router.post("/forgot/reset", userForgotLimiter, resetPassword);
+router.get("/forgot/question", userForgotLimiter, getSecretQuestion);
+router.post(
+  "/forgot/reset",
+  userForgotLimiter,
+  validate(resetPasswordSchema),
+  resetPassword
+);
 
 
 /* ================= USER ================= */
@@ -54,6 +71,9 @@ router.put("/:id", auth, staffOnly, updateUserByAdmin);
 
 // Delete user
 router.delete("/:id", auth, staffOnly, deleteUser);
+
+// Toggle block user
+router.patch("/:id/toggle-block", auth, staffOnly, toggleUserBlock);
 
 
 export default router;

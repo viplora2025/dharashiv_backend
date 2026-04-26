@@ -1,8 +1,10 @@
 // src/middlewares/auth.middleware.js
 
 import jwt from "jsonwebtoken";
+import mongoose from "mongoose";
 import Admin from "../models/adminModel.js";
 import AppUser from "../models/appUserModel.js";
+import RefreshToken from "../models/refreshTokenModel.js";
 
 /* ================= AUTH (USER + STAFF + ADMIN + SUPERADMIN) ================= */
 export const auth = async (req, res, next) => {
@@ -22,11 +24,20 @@ export const auth = async (req, res, next) => {
       process.env.ACCESS_TOKEN_SECRET
     );
 
+    // 3️⃣ GLOBAL LOGOUT CHECK: Ensure at least one valid refresh token exists for this user
+    // If user logged out globally, all refresh tokens are gone.
+    const hasActiveSession = await RefreshToken.exists({ userId: decoded.id });
+    if (!hasActiveSession) {
+      return res.status(401).json({ message: "Session invalidated globally. Please login again." });
+    }
+
     /* ================= APP USER ================= */
     if (decoded.role === "user") {
-      const user = await AppUser.findOne({
-        appUserId: decoded.id
-      });
+      const query = { $or: [{ appUserId: decoded.id }] };
+      if (mongoose.Types.ObjectId.isValid(decoded.id)) {
+        query.$or.push({ _id: decoded.id });
+      }
+      const user = await AppUser.findOne(query);
 
       if (!user) {
         return res.status(403).json({ message: "User not found" });
@@ -38,9 +49,11 @@ export const auth = async (req, res, next) => {
 
     /* ================= STAFF / ADMIN / SUPERADMIN ================= */
     else if (["staff", "admin", "superadmin"].includes(decoded.role)) {
-      const admin = await Admin.findOne({
-        adminId: decoded.id
-      });
+      const query = { $or: [{ adminId: decoded.id }] };
+      if (mongoose.Types.ObjectId.isValid(decoded.id)) {
+        query.$or.push({ _id: decoded.id });
+      }
+      const admin = await Admin.findOne(query);
 
       if (!admin) {
         return res.status(403).json({ message: "Admin not found" });
@@ -97,6 +110,13 @@ export const staffOnly = (req, res, next) => {
 export const userOnly = (req, res, next) => {
   if (req.role !== "user") {
     return res.status(403).json({ message: "User access only" });
+  }
+  next();
+};
+/* ================= USER + ADMIN + SUPERADMIN (NO STAFF) ================= */
+export const notStaff = (req, res, next) => {
+  if (req.role === "staff") {
+    return res.status(403).json({ message: "Staff access denied to this resource" });
   }
   next();
 };

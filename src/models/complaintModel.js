@@ -6,42 +6,60 @@ const complaintSchema = new mongoose.Schema(
       type: String,
       required: true,
       unique: true,
-      trim: true
+      trim: true,
     },
 
     filedBy: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "AppUser",
-      required: true
+      required: true,
+      index: true,
     },
 
     complainer: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Complainer",
-      required: true
+      required: true,
+      index: true,
     },
 
     department: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Department",
-      required: true
+      index: true,
+    },
+
+    taluka: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Taluka",
+      index: true,
+      required: true,
     },
 
     specification: {
       type: String,
-      trim: true
+      trim: true,
     },
 
+    // ❗ Now optional (because voice complaint allowed)
     subject: {
       type: String,
-      required: true,
-      trim: true
+      trim: true,
     },
 
+    // ❗ Now optional (because voice complaint allowed)
     description: {
       type: String,
-      required: true,
-      trim: true
+      trim: true,
+    },
+
+    /* 🎙️ Complaint Voice Note (MAIN VOICE) */
+    voiceNote: {
+      url: { type: String },
+      format: { type: String },   // ex: audio/webm, audio/mpeg
+      duration: { type: Number }, // seconds (optional)
+      publicId: { type: String },
+      resourceType: { type: String, default: "video" }
     },
 
     /* 📎 Complaint media (initial attachments) */
@@ -49,18 +67,26 @@ const complaintSchema = new mongoose.Schema(
       {
         type: {
           type: String,
-          enum: ["image", "video", "pdf", "audio"]
+          enum: ["image", "video", "pdf", "audio"],
         },
         url: {
-          type: String
+          type: String,
+        },
+        publicId: {
+          type: String,
+        },
+        resourceType: {
+          type: String,
+          default: "image"
         }
-      }
+      },
     ],
 
     status: {
       type: String,
       enum: ["open", "in-progress", "resolved", "closed"],
-      default: "open"
+      default: "open",
+      index: true,
     },
 
     /* ================= CHAT / HISTORY ================= */
@@ -68,31 +94,38 @@ const complaintSchema = new mongoose.Schema(
       {
         message: {
           type: String,
-          trim: true   // ❗ no longer required
+          trim: true, // optional
         },
 
         media: [
           {
             type: {
               type: String,
-              enum: ["image", "video", "pdf", "audio"]
+              enum: ["image", "video", "pdf", "audio"],
             },
             url: {
-              type: String
+              type: String,
+            },
+            publicId: {
+              type: String,
+            },
+            resourceType: {
+              type: String,
+              default: "image"
             }
-          }
+          },
         ],
 
         by: {
           type: mongoose.Schema.Types.ObjectId,
           required: true,
-          refPath: "history.byModel"
+          refPath: "history.byModel",
         },
 
         byRole: {
           type: String,
           enum: ["user", "admin", "superadmin"],
-          required: true
+          required: true,
         },
 
         byModel: {
@@ -100,15 +133,15 @@ const complaintSchema = new mongoose.Schema(
           enum: ["AppUser", "Admin"],
           default: function () {
             return this.byRole === "user" ? "AppUser" : "Admin";
-          }
+          },
         },
 
         timestamp: {
           type: Date,
-          default: Date.now
-        }
-      }
-    ]
+          default: Date.now,
+        },
+      },
+    ],
   },
   { timestamps: true }
 );

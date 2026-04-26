@@ -1,123 +1,77 @@
+// src/controllers/eventController.js
 
-import {
-  createEventService,
-  updateEventService,
-  updateEventStatusService,
-  getAllEventsService,
-  getEventByIdService,
-  deleteEventService,
-  getLimitedEventsService
-} from "../services/eventService.js";
-import { sendError, sendSuccess } from "../utils/response.js";
+import * as eventService from "../services/eventService.js";
+import { sendSuccess } from "../utils/response.js";
 
-export const createEvent = async (req, res) => {
+export const createEvent = async (req, res, next) => {
   try {
-    const event = await createEventService({
+    const event = await eventService.createEventService({
       ...req.body,
-      createdBy: req.user._id   // 🔥 from JWT
+      createdBy: req.user?._id
     });
-
     sendSuccess(res, {
       status: 201,
       message: "Event created successfully",
       data: event
     });
-  } catch (error) {
-    sendError(res, { status: 400, message: error.message });
+  } catch (err) {
+    next(err);
   }
 };
 
-
-
-/* =========================
-   UPDATE EVENT
-========================= */
-export const updateEvent = async (req, res) => {
+export const updateEvent = async (req, res, next) => {
   try {
-    const event = await updateEventService(
-      req.params.id,
-      req.body
-    );
-
-    sendSuccess(res, {
-      message: "Event updated successfully",
-      data: event
-    });
-  } catch (error) {
-    sendError(res, { status: 400, message: error.message });
+    const event = await eventService.updateEventService(req.params.id, req.body);
+    sendSuccess(res, { message: "Event updated successfully", data: event });
+  } catch (err) {
+    next(err);
   }
 };
 
-/* =========================
-   UPDATE EVENT STATUS
-========================= */
-export const updateEventStatus = async (req, res) => {
+export const updateEventStatus = async (req, res, next) => {
   try {
-    const event = await updateEventStatusService(
+    const event = await eventService.updateEventStatusService(
       req.params.id,
       req.body.status
     );
-
-    sendSuccess(res, {
-      message: "Event status updated",
-      data: event
-    });
-  } catch (error) {
-    sendError(res, { status: 400, message: error.message });
+    sendSuccess(res, { message: "Event status updated", data: event });
+  } catch (err) {
+    next(err);
   }
 };
 
-/* =========================
-   GET ALL EVENTS
-========================= */
-export const getAllEvents = async (req, res) => {
+export const getAllEvents = async (req, res, next) => {
   try {
-    const events = await getAllEventsService();
-
+    const events = await eventService.getAllEventsService();
     sendSuccess(res, { data: events });
-  } catch (error) {
-    sendError(res, { status: 500, message: error.message });
+  } catch (err) {
+    next(err);
   }
 };
 
-/* =========================
-   GET EVENT BY ID
-========================= */
-export const getEventById = async (req, res) => {
+export const getEventById = async (req, res, next) => {
   try {
-    const event = await getEventByIdService(req.params.id);
-
+    const event = await eventService.getEventByIdService(req.params.id);
     sendSuccess(res, { data: event });
-  } catch (error) {
-    sendError(res, { status: 404, message: error.message });
+  } catch (err) {
+    next(err);
   }
 };
 
-/* =========================
-   DELETE EVENT
-========================= */
-export const deleteEvent = async (req, res) => {
+export const deleteEvent = async (req, res, next) => {
   try {
-    await deleteEventService(req.params.id);
-
+    await eventService.deleteEventService(req.params.id);
     sendSuccess(res, { message: "Event deleted successfully" });
-  } catch (error) {
-    sendError(res, { status: 400, message: error.message });
+  } catch (err) {
+    next(err);
   }
 };
 
-
-
-export const getLimitedEvents = async (req, res) => {
+export const getLimitedEvents = async (req, res, next) => {
   try {
-    const events = await getLimitedEventsService();
-
-    sendSuccess(res, {
-      status: 200,
-      count: events.length,
-      data: events
-    });
-  } catch (error) {
-    sendError(res, { status: 500, message: error.message });
+    const events = await eventService.getLimitedEventsService();
+    sendSuccess(res, { data: events });
+  } catch (err) {
+    next(err);
   }
 };

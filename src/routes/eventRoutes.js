@@ -1,50 +1,62 @@
+// src/routes/eventRoutes.js
+
 import express from "express";
 import {
-   createEvent,
-   updateEvent,
-   updateEventStatus,
-   getAllEvents,
-   getEventById,
-   deleteEvent,
-   getLimitedEvents
+  createEvent,
+  updateEvent,
+  updateEventStatus,
+  getAllEvents,
+  getEventById,
+  deleteEvent,
+  getLimitedEvents
 } from "../controllers/eventController.js";
-import { auth, adminOnly, staffOnly, superAdminOnly } from "../middlewares/authMiddleware.js";
-
-// agar auth middleware hai to yahan lagana
-// import { protect, isAdmin } from "../middlewares/authMiddleware.js";
+import { auth, staffOnly, superAdminOnly } from "../middlewares/authMiddleware.js";
+import validate from "../middlewares/validateMiddleware.js";
+import {
+  createEventSchema,
+  updateEventSchema,
+  updateEventStatusSchema
+} from "../validations/eventValidation.js";
 
 const router = express.Router();
 
-/* =========================
-   CREATE EVENT
-========================= */
-router.post("/", auth, superAdminOnly, createEvent);
+// Create Event
+router.post(
+  "/",
+  auth,
+  superAdminOnly,
+  validate(createEventSchema),
+  createEvent
+);
 
-/* =========================
-   UPDATE EVENT (full update)
-========================= */
-router.put("/:id", auth, superAdminOnly, updateEvent);
-
-/* =========================
-   UPDATE EVENT STATUS
-========================= */
-router.patch("/:id/status", auth, staffOnly, updateEventStatus);
-
-/* =========================
-   GET ALL EVENTS
-========================= */
-router.get("/", getAllEvents);
-
+// Get Limited Events (Dashboard)
 router.get("/limited/events", auth, getLimitedEvents);
 
-/* =========================
-   GET EVENT BY ID
-========================= */
-router.get("/:id", getEventById);
+// Get All Events
+router.get("/", auth, getAllEvents);
 
-/* =========================
-   DELETE EVENT
-========================= */
+// Get Event By ID
+router.get("/:id", auth, getEventById);
+
+// Update Event (Full)
+router.put(
+  "/:id",
+  auth,
+  superAdminOnly,
+  validate(updateEventSchema),
+  updateEvent
+);
+
+// Update Event Status
+router.patch(
+  "/:id/status",
+  auth,
+  staffOnly,
+  validate(updateEventStatusSchema),
+  updateEventStatus
+);
+
+// Delete Event
 router.delete("/:id", auth, superAdminOnly, deleteEvent);
 
 export default router;

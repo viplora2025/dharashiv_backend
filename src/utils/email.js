@@ -1,27 +1,39 @@
 import nodemailer from "nodemailer";
+import env from "../config/env.js";
 
-/* ================= TRANSPORT ================= */
-const transporter = nodemailer.createTransport({
-  host: process.env.EMAIL_HOST,           // smtp.gmail.com
-  port: Number(process.env.EMAIL_PORT),   // 587
-  secure: false,                          // TLS (587)
-  auth: {
-    user: process.env.EMAIL_USER,
-    pass: process.env.EMAIL_PASS
-  },
-  tls: {
-    rejectUnauthorized: false
-  }
-});
+const hasEmailConfig =
+  Boolean(env.EMAIL_HOST) &&
+  Boolean(env.EMAIL_USER) &&
+  Boolean(env.EMAIL_PASS) &&
+  Boolean(env.EMAIL_FROM) &&
+  Boolean(env.EMAIL_PORT);
 
-// (optional but good) – startup check
-transporter.verify((err) => {
-  if (err) {
-    console.error("❌ Email transporter error:", err.message);
-  } else {
-    console.log("📧 Email transporter ready");
-  }
-});
+const transporter = hasEmailConfig
+  ? nodemailer.createTransport({
+      host: env.EMAIL_HOST,
+      port: Number(env.EMAIL_PORT),
+      secure: false,
+      auth: {
+        user: env.EMAIL_USER,
+        pass: env.EMAIL_PASS,
+      },
+      tls: {
+        rejectUnauthorized: false,
+      },
+    })
+  : null;
+
+if (transporter) {
+  transporter.verify((err) => {
+    if (err) {
+      console.error("❌ Email transporter error:", err.message);
+    } else {
+      console.log("📧 Email transporter ready");
+    }
+  });
+} else {
+  console.warn("⚠️ Email transporter disabled; EMAIL_* environment variables incomplete");
+}
 
 /* ================= BASE WRAPPER ================= */
 const baseTemplate = (title, content) => `
@@ -52,13 +64,19 @@ const baseTemplate = (title, content) => `
 `;
 
 /* ================= SEND EMAIL ================= */
-export const sendEmail = async ({ to, subject, html }) => {
+export const sendEmail = async ({ to, subject, html, attachments }) => {
+  if (!transporter) {
+    console.warn("⚠️ Skipping email send: transporter not configured");
+    return;
+  }
+
   try {
     await transporter.sendMail({
-      from: process.env.EMAIL_FROM, // "Viplora Tech <cinpedoff@gmail.com>"
+      from: env.EMAIL_FROM,
       to,
       subject,
-      html
+      html,
+      ...(Array.isArray(attachments) && attachments.length ? { attachments } : {}),
     });
   } catch (err) {
     console.error("❌ Email send failed:", err.message);
@@ -97,7 +115,7 @@ export const sendOtpEmail = async (to, otp) => {
   return sendEmail({
     to,
     subject: "Your OTP Code",
-    html
+    html,
   });
 };
 
@@ -126,7 +144,7 @@ export const sendWelcomeEmail = async (to, name, role) => {
   return sendEmail({
     to,
     subject: "Welcome to Viplora Tech",
-    html
+    html,
   });
 };
 
@@ -147,7 +165,103 @@ export const sendPasswordChangedEmail = async (to) => {
   return sendEmail({
     to,
     subject: "Security Alert: Password Changed",
-    html
+    html,
+  });
+};
+
+/* ================= COMPLAINT FORWARDING ================= */
+export const sendComplaintForwardEmail = async ({ to, complaint, departmentName }) => {
+  const complainerDetails = complaint.complainer || {};
+  const complainerName = complainerDetails.name || "N/A";
+  const complainerPhone = complainerDetails.phone || "N/A";
+  const talukaName = complainerDetails.taluka?.name || "N/A";
+  const villageName = complainerDetails.village?.name || "N/A";
+
+  const attachments = Array.isArray(complaint.media) ? complaint.media : [];
+  const attachmentsHtml = attachments.length
+    ? `<h4>Attachments (${attachments.length}):</h4><ul>${attachments
+        .map((attachment, index) => {
+          const label = attachment.type
+            ? `${attachment.type.charAt(0).toUpperCase()}${attachment.type.slice(1)}`
+            : "File";
+          const url = attachment.url || "#";
+          return `<li><b>Attachment ${index + 1} (${label}):</b> <a href="${url}" target="_blank" rel="noreferrer">Open</a></li>`;
+        })
+        .join("")}</ul>`
+    : "";
+
+  const voiceHtml = complaint.voiceNote?.url
+    ? `<h4>Voice Note:</h4><p><a href="${complaint.voiceNote.url}" target="_blank" rel="noreferrer">🎧 Listen (${complaint.voiceNote.format || "audio"})</a></p>`
+    : "";
+
+  const html = baseTemplate(
+    "New Complaint Assigned",
+    `
+      <h3 style="margin-top:0;color:#0f172a;">Complaint Forwarded to ${departmentName}</h3>
+      <p>Hello,</p>
+      <p>A new complaint has been forwarded to your department for necessary action.</p>
+
+      <div style="background:#f8fafc;padding:16px;border-radius:6px;border-left:4px solid #0f172a;margin:16px 0;">
+        <p style="margin:4px 0;"><b>Complaint ID:</b> ${complaint.complaintId}</p>
+        <p style="margin:4px 0;"><b>Complainer:</b> ${complainerName}</p>
+        <p style="margin:4px 0;"><b>Date:</b> ${new Date(complaint.createdAt).toLocaleDateString()}</p>
+      </div>
+
+      <h4>Complainer Details:</h4>
+      <p style="margin:4px 0;"><b>Name:</b> ${complainerName}</p>
+      <p style="margin:4px 0;"><b>Phone:</b> ${complainerPhone}</p>
+      <p style="margin:4px 0;"><b>Taluka:</b> ${talukaName}</p>
+      <p style="margin:4px 0;"><b>Village:</b> ${villageName}</p>
+
+      <h4>Details:</h4>
+      <p><b>Subject:</b> ${complaint.subject || "N/A"}</p>
+      <p><b>Description:</b> ${complaint.description || "N/A"}</p>
+
+      ${voiceHtml}
+      ${attachmentsHtml}
+
+      <hr style="border:0;border-top:1px solid #e2e8f0;margin:24px 0;" />
+      <p style="font-size:13px;color:#64748b;">
+        Please review the details and take the necessary steps. This is a system-generated email.
+      </p>
+    `
+  );
+
+  // Build real file attachments so recipients receive the files (not just links)
+  const mailAttachments = [];
+  attachments.forEach((attachment, index) => {
+    if (!attachment?.url) return;
+    const ext = (() => {
+      try {
+        const pathname = new URL(attachment.url).pathname;
+        const match = pathname.match(/\.([a-zA-Z0-9]{1,6})$/);
+        if (match) return match[1].toLowerCase();
+      } catch (_) { /* noop */ }
+      if (attachment.type === "image") return "jpg";
+      if (attachment.type === "video") return "mp4";
+      if (attachment.type === "pdf") return "pdf";
+      if (attachment.type === "audio") return "mp3";
+      return "bin";
+    })();
+    const label = attachment.type || "file";
+    mailAttachments.push({
+      filename: `${complaint.complaintId}-${label}-${index + 1}.${ext}`,
+      path: attachment.url,
+    });
+  });
+
+  if (complaint.voiceNote?.url) {
+    mailAttachments.push({
+      filename: `${complaint.complaintId}-voiceNote.${complaint.voiceNote.format || "mp3"}`,
+      path: complaint.voiceNote.url,
+    });
+  }
+
+  return sendEmail({
+    to,
+    subject: `Forwarded Complaint: ${complaint.complaintId}`,
+    html,
+    attachments: mailAttachments,
   });
 };
 

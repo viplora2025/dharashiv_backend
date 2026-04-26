@@ -25,7 +25,8 @@ const dailyVisitorSchema = new mongoose.Schema(
     phone: {
       type: String,
       default: null,
-      trim: true
+      trim: true,
+      index: true
     },
     address: {
       type: String,
@@ -44,7 +45,8 @@ const dailyVisitorSchema = new mongoose.Schema(
     },
     visitDate: {
       type: Date,
-      default: Date.now
+      default: Date.now,
+      index: true
     }
   },
   { timestamps: true }
