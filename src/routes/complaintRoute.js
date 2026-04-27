@@ -3,6 +3,7 @@
 import express from "express";
 import {
   createComplaint,
+  createComplaintByAdmin,
   getAllComplaints,
   getComplaintById,
   updateComplaintStatus,
@@ -40,12 +41,25 @@ router.post(
   createComplaint
 );
 
+/* ============ CREATE COMPLAINT BY ADMIN/SUPERADMIN ============ */
+router.post(
+  "/admin",
+  auth,
+  adminOnly,
+  upload.fields([
+    { name: "voiceNote", maxCount: 1 },
+    { name: "attachments", maxCount: 10 }
+  ]),
+  validate(createComplaintSchema),
+  createComplaintByAdmin
+);
+
 /* ================= ADMIN / SUPERADMIN ================= */
 router.get(
-  "/", 
-  auth, 
-  adminOnly, 
-  validate(filterComplaintSchema), 
+  "/",
+  auth,
+  adminOnly,
+  validate(filterComplaintSchema),
   getAllComplaints
 );
 

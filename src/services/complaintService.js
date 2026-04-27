@@ -181,6 +181,140 @@ export const createComplaintService = async (req) => {
   }
 };
 
+/* ============= CREATE COMPLAINT BY ADMIN ============= */
+export const createComplaintByAdminService = async (req) => {
+  if (!["admin", "superadmin"].includes(req.role)) {
+    throw new Error("Only admin/superadmin can register complaints from dashboard");
+  }
+
+  const { complainer, department, subject, description, specification } = req.body;
+
+  const hasText = (subject && subject.trim()) || (description && description.trim());
+  const hasVoice = !!req.files?.voiceNote?.length;
+
+  if (!hasText && !hasVoice) {
+    throw new Error("Either text complaint or voice note is required");
+  }
+
+  const complainerDoc = await Complainer.findById(complainer);
+  if (!complainerDoc) throw new Error("Complainer not found");
+
+  // Admin can only register on behalf of complainers in their assigned talukas.
+  if (req.role === "admin") {
+    const assigned = (req.user.assignedTaluka || []).map((t) => t.toString());
+    if (!assigned.includes(complainerDoc.taluka.toString())) {
+      throw new Error("Access denied: complainer is outside your assigned taluka");
+    }
+  }
+
+  // Schema requires `filedBy` to be an AppUser. Use the AppUser who originally
+  // registered this complainer; the history entry below records that the
+  // current admin/superadmin actually filed it.
+  const filedBy = complainerDoc.addedBy;
+
+  let uploadedFiles = [];
+
+  try {
+    let media = [];
+    if (req.files?.attachments?.length) {
+      media = await Promise.all(
+        req.files.attachments.map(async (file) => {
+          const ok = validateFileSignature(file);
+          if (!ok) throw new Error("Corrupted file detected");
+
+          const upload = await storageService.uploadFile(file.buffer, file.mimetype, "complaints/attachments");
+          uploadedFiles.push({ publicId: upload.publicId, resourceType: upload.resourceType });
+
+          return {
+            type: upload.type,
+            url: upload.url,
+            publicId: upload.publicId,
+            resourceType: upload.resourceType
+          };
+        })
+      );
+    }
+
+    let voiceNote = null;
+    if (req.files?.voiceNote?.length) {
+      const file = req.files.voiceNote[0];
+      const ok = validateFileSignature(file);
+      if (!ok) throw new Error("Corrupted voice note detected");
+
+      const upload = await storageService.uploadFile(file.buffer, file.mimetype, "complaints/voice");
+      uploadedFiles.push({ publicId: upload.publicId, resourceType: upload.resourceType });
+
+      voiceNote = {
+        url: upload.url,
+        format: file.mimetype,
+        publicId: upload.publicId,
+        resourceType: upload.resourceType
+      };
+    }
+
+    const complaintId = await generateComplaintId(filedBy, complainer);
+
+    const complaint = await Complaint.create({
+      complaintId,
+      filedBy,
+      complainer,
+      taluka: complainerDoc.taluka,
+      department: department || null,
+      specification,
+      subject: subject?.trim() || null,
+      description: description?.trim() || null,
+      voiceNote,
+      media,
+      history: [
+        {
+          message: voiceNote
+            ? `Voice complaint registered by ${req.role}`
+            : `Complaint registered by ${req.role}`,
+          by: req.user._id,
+          byRole: req.role,
+          timestamp: new Date(),
+        },
+      ],
+    });
+
+    try {
+      await emitComplaintNotification({
+        talukaId: complainerDoc.taluka,
+        adminEvent: "complaint:new",
+        payload: {
+          complaintId: complaint._id,
+          subject: complaint.subject || "Voice Complaint",
+          status: complaint.status,
+          talukaId: complainerDoc.taluka,
+          createdAt: complaint.createdAt,
+        },
+        persistent: true,
+        recipientModel: "Admin",
+        notificationData: {
+          title: {
+            en: "New Complaint",
+            mr: "नवीन तक्रार"
+          },
+          message: {
+            en: `New complaint ${complaint.complaintId} from ${complainerDoc.name} (filed by ${req.role})`,
+            mr: `${complainerDoc.name} कडून नवीन तक्रार ${complaint.complaintId} (${req.role} द्वारे नोंदविली)`
+          },
+          type: "complaint_new",
+          relatedId: complaint._id
+        }
+      });
+    } catch (err) {
+      console.error("Socket emit failed:", err.message);
+    }
+
+    return complaint;
+  } catch (err) {
+    console.error("📦 DB/Upload Error - triggering file cleanup hooks...");
+    await storageService.deleteMultipleFiles(uploadedFiles);
+    throw err;
+  }
+};
+
 /* ================ GET ALL COMPLAINTS ================= */
 export const getAllComplaintsService = async (query, accessibleTalukas = null) => {
   const { status, department, filedBy, talukaId, page = 1, limit = 10 } = query;
@@ -205,7 +339,7 @@ export const getAllComplaintsService = async (query, accessibleTalukas = null) =
   const skip = (page - 1) * limit;
   const totalRecords = await Complaint.countDocuments(filter);
   const data = await Complaint.find(filter)
-    .select("complaintId subject status createdAt")
+    .select("complaintId subject status createdAt specification description media voiceNote")
     .populate({
       path: "complainer",
       select: "name complainerId phone",
