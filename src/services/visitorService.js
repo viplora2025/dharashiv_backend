@@ -126,6 +126,15 @@ export const getVisitorByIdService = async (id) => {
 };
 
 /* =========================
+   DELETE VISITOR
+========================= */
+export const deleteVisitorService = async (visitorId) => {
+  const visitor = await Visitor.findByIdAndDelete(visitorId);
+  if (!visitor) throw new Error("Visitor not found");
+  return visitor;
+};
+
+/* =========================
    UPDATE VISITOR STATUS
 ========================= */
 export const updateVisitorStatusService = async (visitorId, newStatus) => {
