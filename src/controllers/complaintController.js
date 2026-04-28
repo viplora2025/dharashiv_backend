@@ -16,6 +16,19 @@ export const createComplaint = async (req, res, next) => {
   }
 };
 
+export const createComplaintByAdmin = async (req, res, next) => {
+  try {
+    const complaint = await complaintService.createComplaintByAdminService(req);
+    sendSuccess(res, {
+      status: 201,
+      message: "Complaint registered successfully",
+      data: complaint
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
 export const getAllComplaints = async (req, res, next) => {
   try {
     const accessibleTalukas = req.role === "admin" ? (req.user.assignedTaluka || []) : null;
@@ -66,6 +79,15 @@ export const updateComplaintStatus = async (req, res, next) => {
 export const trackComplaint = async (req, res, next) => {
   try {
     const data = await complaintService.trackComplaintService(req.params.complaintId);
+    sendSuccess(res, { data });
+  } catch (err) {
+    next(err);
+  }
+};
+
+export const trackComplaintsByPhone = async (req, res, next) => {
+  try {
+    const data = await complaintService.trackComplaintsByPhoneService(req.params.phone);
     sendSuccess(res, { data });
   } catch (err) {
     next(err);

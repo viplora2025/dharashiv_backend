@@ -5,11 +5,46 @@ import AppUser from "../models/appUserModel.js";
 import Taluka from "../models/talukaModel.js";
 import Village from "../models/villageModel.js";
 import { generateComplainerId } from "../utils/generateIds.js";
+import { generateAppUserId } from "../utils/generateIds.js";
+import bcrypt from "bcryptjs";
 
 const hasTalukaAccess = (req, talukaId) => {
   if (req.role !== "admin") return true;
   const assigned = req.user.assignedTaluka || [];
   return assigned.some((t) => t.toString() === talukaId.toString());
+};
+
+const resolveAddedByAppUserId = async ({ name, phone, addedBy, addedByRole }) => {
+  if (addedByRole === "user") {
+    const userDoc = await AppUser.findById(addedBy).select("_id");
+    if (!userDoc) throw new Error("Invalid user");
+    return userDoc._id;
+  }
+
+  if (!["admin", "superadmin"].includes(addedByRole)) {
+    throw new Error("Invalid complainer creator");
+  }
+
+  const existingUser = await AppUser.findOne({ phone }).select("_id");
+  if (existingUser) {
+    return existingUser._id;
+  }
+
+  const appUserId = await generateAppUserId();
+  const tempPassword = `Temp@${phone.slice(-4)}${Date.now().toString().slice(-4)}`;
+  const hashedPass = await bcrypt.hash(tempPassword, 10);
+  const hashedAns = await bcrypt.hash(phone, 10);
+
+  const createdUser = await AppUser.create({
+    appUserId,
+    name: name.trim(),
+    phone: phone.trim(),
+    password: hashedPass,
+    secretQuestion: "What is your mobile number?",
+    secretAnswer: hashedAns,
+  });
+
+  return createdUser._id;
 };
 
 /* ================= CREATE COMPLAINER ================= */
@@ -18,17 +53,23 @@ export const createComplainerService = async ({
   phone,
   taluka,
   village,
-  addedBy
+  addedBy,
+  addedByRole = "user",
 }) => {
   if (!addedBy) throw new Error("addedBy user is required");
 
-  const [userDoc, talukaDoc, villageDoc] = await Promise.all([
-    AppUser.findById(addedBy).select("_id"),
+  const addedByAppUserId = await resolveAddedByAppUserId({
+    name,
+    phone,
+    addedBy,
+    addedByRole,
+  });
+
+  const [talukaDoc, villageDoc] = await Promise.all([
     Taluka.findById(taluka).select("_id"),
     Village.findById(village).select("_id taluka")
   ]);
 
-  if (!userDoc) throw new Error("Invalid user");
   if (!talukaDoc) throw new Error("Taluka not found");
   if (!villageDoc) throw new Error("Village not found");
   if (villageDoc.taluka.toString() !== taluka.toString()) {
@@ -39,7 +80,7 @@ export const createComplainerService = async ({
     name: name.trim(),
     phone: phone.trim(),
     village,
-    addedBy
+    addedBy: addedByAppUserId
   });
 
   if (duplicate) throw new Error("Duplicate complainer detected");
@@ -52,10 +93,13 @@ export const createComplainerService = async ({
     phone: phone.trim(),
     taluka,
     village,
-    addedBy
+    addedBy: addedByAppUserId
   });
 
-  return complainer;
+  return await Complainer.findById(complainer._id)
+    .populate("taluka", "name")
+    .populate("village", "name")
+    .populate("addedBy", "name phone");
 };
 
 /* ================= GET ALL COMPLAINERS ================= */

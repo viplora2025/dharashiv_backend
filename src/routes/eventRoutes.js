@@ -8,7 +8,9 @@ import {
   getAllEvents,
   getEventById,
   deleteEvent,
-  getLimitedEvents
+  getLimitedEvents,
+  archiveEvent,
+  unarchiveEvent
 } from "../controllers/eventController.js";
 import { auth, staffOnly, superAdminOnly } from "../middlewares/authMiddleware.js";
 import validate from "../middlewares/validateMiddleware.js";
@@ -55,6 +57,10 @@ router.patch(
   validate(updateEventStatusSchema),
   updateEventStatus
 );
+
+// Archive / Unarchive Event
+router.patch("/:id/archive", auth, superAdminOnly, archiveEvent);
+router.patch("/:id/unarchive", auth, superAdminOnly, unarchiveEvent);
 
 // Delete Event
 router.delete("/:id", auth, superAdminOnly, deleteEvent);

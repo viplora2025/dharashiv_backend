@@ -50,3 +50,9 @@ export const filterComplaintSchema = z.object({
     limit: z.string().regex(/^\d+$/).transform(Number).optional().default("10"),
   }),
 });
+
+export const trackComplaintsByPhoneSchema = z.object({
+  params: z.object({
+    phone: z.string().regex(/^[0-9]{10}$/, "Invalid phone number"),
+  }),
+});

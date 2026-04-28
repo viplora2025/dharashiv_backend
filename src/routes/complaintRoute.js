@@ -3,10 +3,12 @@
 import express from "express";
 import {
   createComplaint,
+  createComplaintByAdmin,
   getAllComplaints,
   getComplaintById,
   updateComplaintStatus,
   trackComplaint,
+  trackComplaintsByPhone,
   getComplaintsByUser,
   getComplaintsByComplainer,
   getComplaintChat,
@@ -22,7 +24,8 @@ import {
   createComplaintSchema,
   updateStatusSchema,
   addChatSchema,
-  filterComplaintSchema
+  filterComplaintSchema,
+  trackComplaintsByPhoneSchema
 } from "../validations/complaintValidation.js";
 
 const router = express.Router();
@@ -40,12 +43,25 @@ router.post(
   createComplaint
 );
 
+/* ============ CREATE COMPLAINT BY ADMIN/SUPERADMIN ============ */
+router.post(
+  "/admin",
+  auth,
+  adminOnly,
+  upload.fields([
+    { name: "voiceNote", maxCount: 1 },
+    { name: "attachments", maxCount: 10 }
+  ]),
+  validate(createComplaintSchema),
+  createComplaintByAdmin
+);
+
 /* ================= ADMIN / SUPERADMIN ================= */
 router.get(
-  "/", 
-  auth, 
-  adminOnly, 
-  validate(filterComplaintSchema), 
+  "/",
+  auth,
+  adminOnly,
+  validate(filterComplaintSchema),
   getAllComplaints
 );
 
@@ -83,6 +99,7 @@ router.post(
 router.get("/:id/chat", auth, notStaff, getComplaintChat);
 
 /* ================= PUBLIC TRACKING =================== */
+router.get("/track/phone/:phone", validate(trackComplaintsByPhoneSchema), trackComplaintsByPhone);
 router.get("/track/:complaintId", trackComplaint);
 
 export default router;

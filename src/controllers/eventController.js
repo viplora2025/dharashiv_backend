@@ -42,8 +42,31 @@ export const updateEventStatus = async (req, res, next) => {
 
 export const getAllEvents = async (req, res, next) => {
   try {
-    const events = await eventService.getAllEventsService();
+    const archivedParam = req.query?.archived;
+    let archived;
+    if (archivedParam === "true") archived = true;
+    else if (archivedParam === "all") archived = "all";
+    else archived = false;
+    const events = await eventService.getAllEventsService({ archived });
     sendSuccess(res, { data: events });
+  } catch (err) {
+    next(err);
+  }
+};
+
+export const archiveEvent = async (req, res, next) => {
+  try {
+    const event = await eventService.setEventArchivedService(req.params.id, true);
+    sendSuccess(res, { message: "Event archived", data: event });
+  } catch (err) {
+    next(err);
+  }
+};
+
+export const unarchiveEvent = async (req, res, next) => {
+  try {
+    const event = await eventService.setEventArchivedService(req.params.id, false);
+    sendSuccess(res, { message: "Event unarchived", data: event });
   } catch (err) {
     next(err);
   }

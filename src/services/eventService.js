@@ -120,8 +120,33 @@ export const updateEventStatusService = async (id, status) => {
 
 
 /* ================= GET ALL EVENTS ================= */
-export const getAllEventsService = async () => {
-  return await Event.find().sort({ eventDate: -1 });
+export const getAllEventsService = async (options = {}) => {
+  const filter = {};
+  // Default behaviour: hide archived events from the main listing.
+  // Pass { archived: true } to fetch only archived events,
+  // or { archived: 'all' } to include both.
+  if (options.archived === true) {
+    filter.isArchived = true;
+  } else if (options.archived !== "all") {
+    filter.isArchived = { $ne: true };
+  }
+  return await Event.find(filter).sort({ eventDate: -1 });
+};
+
+/* ================= TOGGLE ARCHIVE ================= */
+export const setEventArchivedService = async (id, isArchived) => {
+  const update = {
+    isArchived: !!isArchived,
+    archivedAt: isArchived ? new Date() : null
+  };
+  const event = await Event.findByIdAndUpdate(id, update, {
+    new: true,
+    runValidators: true
+  });
+  if (!event) {
+    throw new Error("Event not found");
+  }
+  return event;
 };
 
 /* ================= GET EVENT BY ID ================= */
