@@ -7,7 +7,8 @@ export const createComplainer = async (req, res, next) => {
   try {
     const complainer = await complainerService.createComplainerService({
       ...req.body,
-      addedBy: req.user?._id
+      addedBy: req.user?._id,
+      addedByRole: req.role,
     });
     sendSuccess(res, {
       status: 201,

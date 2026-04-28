@@ -63,6 +63,17 @@ const eventSchema = new mongoose.Schema(
       default: 0
     },
 
+    isArchived: {
+      type: Boolean,
+      default: false,
+      index: true
+    },
+
+    archivedAt: {
+      type: Date,
+      default: null
+    },
+
     createdBy: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Admin",

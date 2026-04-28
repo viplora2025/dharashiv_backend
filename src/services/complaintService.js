@@ -510,6 +510,30 @@ export const trackComplaintService = async (complaintId) => {
   };
 };
 
+export const trackComplaintsByPhoneService = async (phone) => {
+  const normalizedPhone = String(phone || "").trim();
+  if (!/^[0-9]{10}$/.test(normalizedPhone)) {
+    throw new Error("Invalid phone number");
+  }
+
+  const complainerIds = await Complainer.find({ phone: normalizedPhone }).distinct("_id");
+  if (complainerIds.length === 0) {
+    return [];
+  }
+
+  const complaints = await Complaint.find({ complainer: { $in: complainerIds } })
+    .select("complaintId status createdAt updatedAt")
+    .sort({ createdAt: -1 })
+    .lean();
+
+  return complaints.map((complaint) => ({
+    complaintId: complaint.complaintId,
+    status: complaint.status,
+    createdAt: complaint.createdAt,
+    updatedAt: complaint.updatedAt,
+  }));
+};
+
 /* ================= USER MY COMPLAINTS ================= */
 export const getComplaintsByUserService = async (req, page, limit, status) => {
   const filter = { filedBy: req.user._id };

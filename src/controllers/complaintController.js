@@ -85,6 +85,15 @@ export const trackComplaint = async (req, res, next) => {
   }
 };
 
+export const trackComplaintsByPhone = async (req, res, next) => {
+  try {
+    const data = await complaintService.trackComplaintsByPhoneService(req.params.phone);
+    sendSuccess(res, { data });
+  } catch (err) {
+    next(err);
+  }
+};
+
 export const getComplaintsByUser = async (req, res, next) => {
   try {
     const { page = 1, limit = 10, status } = req.query;

@@ -8,6 +8,7 @@ import {
   getComplaintById,
   updateComplaintStatus,
   trackComplaint,
+  trackComplaintsByPhone,
   getComplaintsByUser,
   getComplaintsByComplainer,
   getComplaintChat,
@@ -23,7 +24,8 @@ import {
   createComplaintSchema,
   updateStatusSchema,
   addChatSchema,
-  filterComplaintSchema
+  filterComplaintSchema,
+  trackComplaintsByPhoneSchema
 } from "../validations/complaintValidation.js";
 
 const router = express.Router();
@@ -97,6 +99,7 @@ router.post(
 router.get("/:id/chat", auth, notStaff, getComplaintChat);
 
 /* ================= PUBLIC TRACKING =================== */
+router.get("/track/phone/:phone", validate(trackComplaintsByPhoneSchema), trackComplaintsByPhone);
 router.get("/track/:complaintId", trackComplaint);
 
 export default router;

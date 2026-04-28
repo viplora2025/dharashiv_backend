@@ -30,6 +30,14 @@ router.post(
   createComplainer
 );
 
+router.post(
+  "/admin",
+  auth,
+  adminOnly,
+  validate(createComplainerSchema),
+  createComplainer
+);
+
 /* ================= READ (LIST) ================= */
 router.get(
   "/",
