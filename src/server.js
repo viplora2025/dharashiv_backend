@@ -12,6 +12,7 @@ import {
   shutdownRedisAdapter,
 } from "./config/redisAdapter.js";
 import { initNotificationWorker } from "./workers/notificationWorker.js";
+import logger from "./utils/logger.js";
 
 import socketAuthMiddleware from "./middlewares/socketAuthMiddleware.js";
 
@@ -29,12 +30,12 @@ const io = new Server(server, {
 io.use(socketAuthMiddleware);
 
 io.on("connection", (socket) => {
-  console.log("💬 Socket connected:", socket.id);
+  logger.info(`💬 Socket connected: ${socket.id}`);
 
   const user = socket.user;
 
   if (!user) {
-    console.warn("⚠️ No user attached to socket", socket.id);
+    logger.warn(`⚠️ No user attached to socket: ${socket.id}`);
     return;
   }
 
@@ -59,7 +60,7 @@ io.on("connection", (socket) => {
   });
 
   socket.on("disconnect", () => {
-    console.log("⚙️ Socket disconnected:", socket.id);
+    logger.info(`⚙️ Socket disconnected: ${socket.id}`);
   });
 });
 
@@ -70,9 +71,9 @@ const closeHttpServer = () =>
     }
     server.close((err) => {
       if (err) {
-        console.error("❌ Error closing HTTP server:", err.message);
+        logger.error(`❌ Error closing HTTP server: ${err.message}`);
       } else {
-        console.log("🛑 HTTP server closed");
+        logger.info("🛑 HTTP server closed");
       }
       resolve();
     });
@@ -84,10 +85,10 @@ const shutdownGracefully = async (signal, exitCode = 0) => {
   if (shuttingDown) return;
   shuttingDown = true;
 
-  console.warn(`⚙️ Received ${signal} → shutting down gracefully`);
+  logger.warn(`⚙️ Received ${signal} → shutting down gracefully`);
 
   const forceExit = setTimeout(() => {
-    console.error("❌ Graceful shutdown timed out; forcing exit");
+    logger.error("❌ Graceful shutdown timed out; forcing exit");
     process.exit(1);
   }, 10_000);
   forceExit.unref();
@@ -97,19 +98,19 @@ const shutdownGracefully = async (signal, exitCode = 0) => {
   try {
     await shutdownRedisAdapter();
   } catch (err) {
-    console.error("❌ Redis adapter shutdown error:", err?.message || err);
+    logger.error(`❌ Redis adapter shutdown error: ${err?.message || err}`);
   }
 
   await disconnectDB();
 
   clearTimeout(forceExit);
-  console.log("✅ Shutdown complete");
+  logger.info("✅ Shutdown complete");
   process.exit(exitCode);
 };
 
 const handleServerError = (error) => {
   if (error.code === "EADDRINUSE") {
-    console.error(
+    logger.error(
       `⚠️ Port ${PORT} is already in use; stop other processes or change PORT.`
     );
     process.exit(1);
@@ -124,7 +125,7 @@ const startServer = async () => {
   await initRedisAdapter(io);
   initNotificationWorker(io); // 🚀 Start background worker
   server.listen(PORT, () => {
-    console.log(`🚀 [${NODE_ENV}] Server + Socket running on port ${PORT}`);
+    logger.info(`🚀 [${NODE_ENV}] Server + Socket running on port ${PORT}`);
   });
 };
 
@@ -134,7 +135,7 @@ const initialize = async () => {
 };
 
 initialize().catch((err) => {
-  console.error("❌ Server failed to start:", err?.message || err);
+  logger.error(`❌ Server failed to start: ${err?.message || err}`);
   shutdownGracefully("startServerError", 1);
 });
 
@@ -146,11 +147,11 @@ let lastSigint = 0;
 process.on("SIGINT", () => {
   const now = Date.now();
   if (now - lastSigint < 3000) {
-    console.warn("⚙️ Received SIGINT (confirmed) → shutting down");
+    logger.warn("⚙️ Received SIGINT (confirmed) → shutting down");
     return shutdownGracefully("SIGINT");
   }
   lastSigint = now;
-  console.warn(
+  logger.warn(
     "⚙️ Received SIGINT — ignoring (press Ctrl+C again within 3s to actually stop)"
   );
 });
@@ -160,19 +161,19 @@ process.on("SIGTERM", () => shutdownGracefully("SIGTERM"));
 // SIGHUP is sent on Windows when the parent terminal closes — ignore so a
 // closed VS Code terminal doesn't take the API down.
 process.on("SIGHUP", () => {
-  console.warn("⚙️ Received SIGHUP — ignoring; server stays alive");
+  logger.warn("⚙️ Received SIGHUP — ignoring; server stays alive");
 });
 
 // Log unhandled rejections but keep the server alive. A stray unhandled
 // promise should not take down every route.
 process.on("unhandledRejection", (reason) => {
-  console.error("❌ Unhandled rejection (server kept alive):", reason);
+  logger.error(`❌ Unhandled rejection (server kept alive): ${reason}`);
 });
 
 // Uncaught exceptions leave the process in an unknown state — exit so the
 // supervisor (pm2/nodemon/docker) restarts cleanly.
 process.on("uncaughtException", (error) => {
-  console.error("❌ Uncaught exception:", error);
+  logger.error(`❌ Uncaught exception: ${error.message}`, { stack: error.stack });
   shutdownGracefully("uncaughtException", 1);
 });
 

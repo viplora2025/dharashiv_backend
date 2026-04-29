@@ -47,8 +47,8 @@ export const registerVisitorOnlineService = async (data) => {
       mr: "नवीन अभ्यागत नोंदणीकृत"
     },
     message: {
-      en: `${visitor.visitorName} has registered for token #${visitor.tokenNo}`,
-      mr: `${visitor.visitorName} यांनी टोकन #${visitor.tokenNo} साठी नोंदणी केली आहे`
+      en: `${visitor.visitorName} has successfully registered and received token #${visitor.tokenNo}.`,
+      mr: `${visitor.visitorName} यांनी टोकन क्रमांक #${visitor.tokenNo} साठी यशस्वीरित्या नोंदणी केली आहे.`
     },
     type: "visitor_new",
     relatedId: visitor._id

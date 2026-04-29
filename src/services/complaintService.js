@@ -157,12 +157,12 @@ export const createComplaintService = async (req) => {
         recipientModel: "Admin",
         notificationData: {
           title: { 
-            en: "New Complaint", 
-            mr: "नवीन तक्रार" 
+            en: "New Complaint Registered", 
+            mr: "नवीन तक्रार नोंदवली गेली आहे" 
           },
           message: { 
-            en: `New complaint ${complaint.complaintId} from ${complainerDoc.name}`, 
-            mr: `${complainerDoc.name} कडून नवीन तक्रार ${complaint.complaintId}` 
+            en: `A new complaint (${complaint.complaintId}) has been registered by ${complainerDoc.name}.`, 
+            mr: `${complainerDoc.name} यांनी एक नवीन तक्रार (${complaint.complaintId}) नोंदवली आहे.` 
           },
           type: "complaint_new",
           relatedId: complaint._id
@@ -292,12 +292,12 @@ export const createComplaintByAdminService = async (req) => {
         recipientModel: "Admin",
         notificationData: {
           title: {
-            en: "New Complaint",
-            mr: "नवीन तक्रार"
+            en: "New Complaint Registered",
+            mr: "नवीन तक्रार नोंदवली गेली आहे"
           },
           message: {
-            en: `New complaint ${complaint.complaintId} from ${complainerDoc.name} (filed by ${req.role})`,
-            mr: `${complainerDoc.name} कडून नवीन तक्रार ${complaint.complaintId} (${req.role} द्वारे नोंदविली)`
+            en: `A new complaint (${complaint.complaintId}) for ${complainerDoc.name} has been filed by ${req.role}.`,
+            mr: `${req.role} द्वारे ${complainerDoc.name} यांच्यासाठी नवीन तक्रार (${complaint.complaintId}) दाखल केली आहे.`
           },
           type: "complaint_new",
           relatedId: complaint._id
@@ -468,13 +468,12 @@ export const updateComplaintStatusService = async (id, status, req) => {
         recipientId: complaint.filedBy?._id,
         recipientModel: "AppUser",
         title: {
-
           en: "Complaint Status Updated",
-          mr: "तक्रारीची स्थिती अद्ययावत केली"
+          mr: "तक्रारीच्या स्थितीत बदल"
         },
         message: {
-          en: `Your complaint ${complaint.complaintId} status has been updated to ${status}`,
-          mr: `तुमच्या तक्रार ${complaint.complaintId} ची स्थिती ${status} वर अद्ययावत केली गेली आहे`
+          en: `The status of your complaint (${complaint.complaintId}) has been updated to '${status}'.`,
+          mr: `तुमच्या तक्रारीची (${complaint.complaintId}) स्थिती आता '${status}' अशी अद्ययावत करण्यात आली आहे.`
         },
         type: "complaint_status",
         relatedId: complaint._id
@@ -632,12 +631,12 @@ export const addChatMessageService = async (id, req) => {
           recipientId: isUserSender ? null : complaint.filedBy?._id,
           recipientModel: isUserSender ? "Admin" : "AppUser",
           title: {
-            en: isUserSender ? "New Message from User" : "New Message from Admin",
-            mr: isUserSender ? "वापरकर्त्याकडून नवीन संदेश" : "प्रशासकाकडून नवीन संदेश"
+            en: isUserSender ? "New Message Received" : "New Reply from Admin",
+            mr: isUserSender ? "नवीन संदेश प्राप्त झाला" : "प्रशासकाकडून नवीन उत्तर"
           },
           message: {
-            en: `New message on complaint ${complaint.complaintId}`,
-            mr: `तक्रार ${complaint.complaintId} वर नवीन संदेश`
+            en: `You have received a new message regarding complaint ${complaint.complaintId}.`,
+            mr: `तुम्हाला तक्रार क्रमांक ${complaint.complaintId} संदर्भात नवीन संदेश मिळाला आहे.`
           },
           type: "complaint_chat",
           relatedId: complaint._id

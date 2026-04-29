@@ -1,6 +1,7 @@
 // src/middlewares/errorMiddleware.js
 
 import { sendError } from "../utils/response.js";
+import logger from "../utils/logger.js";
 
 /**
  * Global Error Handling Middleware
@@ -60,8 +61,7 @@ const errorMiddleware = (err, req, res, next) => {
 
   if (environment === "development") {
     // 💻 Development: Log everything and send full details
-    console.error("❌ ERROR [DEV]:", {
-      message: err.message,
+    logger.error(`❌ ERROR [DEV]: ${err.message}`, {
       stack: err.stack,
       path: req.path,
       method: req.method,
@@ -75,11 +75,9 @@ const errorMiddleware = (err, req, res, next) => {
 
   } else {
     // 🛡️ Production: Mask unexpected errors
-    console.error("❌ ERROR [PROD]:", {
-      message: err.message,
+    logger.error(`❌ ERROR [PROD]: ${err.message}`, {
       path: req.path,
       method: req.method,
-      // No stack trace in prod logs to keep things clean/secure
     });
 
     // If it's a crash/database failure/programming bug (not operational), mask it.

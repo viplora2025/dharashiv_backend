@@ -115,7 +115,9 @@ async function handleBroadcastAllUsers(data) {
  */
 async function handleBroadcastTalukaAdmins(data) {
   const { talukaId, title, message, type, relatedId } = data;
-  const query = talukaId ? { assignedTaluka: talukaId } : {};
+  const query = talukaId 
+    ? { $or: [{ assignedTaluka: talukaId }, { role: "superadmin" }] } 
+    : {};
   const admins = await Admin.find(query);
 
   if (admins.length === 0) return;

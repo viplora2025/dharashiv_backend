@@ -2,6 +2,8 @@ import express from "express";
 import helmet from "helmet";
 import cors from "cors";
 import mongoSanitize from "express-mongo-sanitize";
+import morgan from "morgan";
+import logger from "./utils/logger.js";
 
 // routes
 import appUserRoute from "./routes/appUserRoute.js";
@@ -24,7 +26,15 @@ import { globalApiLimiter } from "./middlewares/rateLimit.js";
 
 const app = express();
 
-console.log("🔥 app.js loaded");
+// ✅ Logger middleware (Morgan)
+const morganFormat = process.env.NODE_ENV === "production" ? "combined" : "dev";
+app.use(morgan(morganFormat, {
+  stream: {
+    write: (message) => logger.info(message.trim())
+  }
+}));
+
+logger.info("🔥 app.js loaded");
 
 // ✅ CORS MUST BE FIRST — before rate limiter, helmet, or any middleware
 // that can short-circuit a request. Otherwise OPTIONS preflight responses
@@ -45,8 +55,8 @@ app.use(cors(corsOptions));
 // CORS headers even if a later middleware would otherwise intercept.
 app.options("*", cors(corsOptions));
 
-// Rate limiter removed globally as per user request
-// app.use("/api", globalApiLimiter);
+// Global rate limiter
+app.use("/api", globalApiLimiter);
 
 // ✅ BASIC SECURITY HEADERS (CSP disabled to avoid frontend breakage)
 app.use(helmet({ contentSecurityPolicy: false }));
@@ -71,49 +81,49 @@ app.get("/test", (req, res) => {
 });
 
 // ✅ ROUTES (with debug logs)
-console.log("➡️ registering routes...");
+logger.info("➡️ registering routes...");
 
 app.use("/api/appUsers", appUserRoute);
-console.log("✔ appUsers route loaded");
+logger.info("✔ appUsers route loaded");
 
 app.use("/api/auth", authRoute);
-console.log("✔ auth route loaded");
+logger.info("✔ auth route loaded");
 
 app.use("/api/talukas", talukaRoute);
-console.log("✔ talukas route loaded");
+logger.info("✔ talukas route loaded");
 
 app.use("/api/villages", villageRoute);
-console.log("✔ villages route loaded");
+logger.info("✔ villages route loaded");
 
 app.use("/api/departments", departmentRoute);
-console.log("✔ departments route loaded");
+logger.info("✔ departments route loaded");
 
 app.use("/api/complainers", complainerRoute);
-console.log("✔ complainers route loaded");
+logger.info("✔ complainers route loaded");
 
 app.use("/api/complaints", complaintRoute);
-console.log("✔ complaints route loaded");
+logger.info("✔ complaints route loaded");
 
 app.use("/api/admins", adminRoute);
-console.log("✔ admins route loaded");
+logger.info("✔ admins route loaded");
 
 app.use("/api/events", eventRoutes);
-console.log("✔ events route loaded");
+logger.info("✔ events route loaded");
 
 app.use("/api/visitors", visitorRoutes);
-console.log("✔ visitors route loaded");
+logger.info("✔ visitors route loaded");
 
 app.use("/api/daily-visitors", dailyVisitorRoutes);
-console.log("✔ daily visitors route loaded");
+logger.info("✔ daily visitors route loaded");
 
 app.use("/api/announcements", announcementRoutes);
-console.log("✔ announcements route loaded");
+logger.info("✔ announcements route loaded");
 
 app.use("/api/notifications", notificationRoute);
-console.log("✔ notifications route loaded");
+logger.info("✔ notifications route loaded");
 
 app.use("/api/journeys", journeyRoutes);
-console.log("✔ journeys route loaded");
+logger.info("✔ journeys route loaded");
 
 
 

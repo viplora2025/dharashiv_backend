@@ -1,4 +1,5 @@
 import mongoose from "mongoose";
+import logger from "../utils/logger.js";
 
 let isConnected = false;
 
@@ -6,15 +7,15 @@ let isConnected = false;
 // in pm2 logs (helps diagnose "routes go dead" caused by brief DNS/network
 // hiccups on Atlas).
 mongoose.connection.on("disconnected", () => {
-  console.warn("⚠️ MongoDB disconnected — driver will auto-reconnect");
+  logger.warn("⚠️ MongoDB disconnected — driver will auto-reconnect");
   isConnected = false;
 });
 mongoose.connection.on("reconnected", () => {
-  console.log("✅ MongoDB reconnected");
+  logger.info("✅ MongoDB reconnected");
   isConnected = true;
 });
 mongoose.connection.on("error", (err) => {
-  console.error("❌ MongoDB error:", err?.message || err);
+  logger.error(`❌ MongoDB error: ${err?.message || err}`);
 });
 
 const connectDB = async () => {
@@ -42,9 +43,9 @@ const connectDB = async () => {
     });
 
     isConnected = db.connections[0].readyState === 1;
-    console.log("✅ MongoDB Connected");
+    logger.info("✅ MongoDB Connected");
   } catch (error) {
-    console.error("❌ MongoDB Error:", error.message);
+    logger.error(`❌ MongoDB Error: ${error.message}`);
     throw error;
   }
 };
@@ -55,9 +56,9 @@ const disconnectDB = async () => {
   try {
     await mongoose.disconnect();
     isConnected = false;
-    console.log("ℹ️ MongoDB connection closed");
+    logger.info("ℹ️ MongoDB connection closed");
   } catch (error) {
-    console.error("❌ Failed to disconnect MongoDB:", error.message);
+    logger.error(`❌ Failed to disconnect MongoDB: ${error.message}`);
   }
 };
 

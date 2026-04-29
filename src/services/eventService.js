@@ -39,8 +39,8 @@ export const createEventService = async (data) => {
       mr: "नवीन कार्यक्रमाची घोषणा"
     },
     message: {
-      en: `${event.title.en} on ${new Date(event.eventDate).toLocaleDateString()}`,
-      mr: `${event.title.mr} - ${new Date(event.eventDate).toLocaleDateString()}`
+      en: `A new event "${event.title.en}" has been scheduled for ${new Date(event.eventDate).toLocaleDateString()}.`,
+      mr: `"${event.title.mr}" हा नवीन कार्यक्रम ${new Date(event.eventDate).toLocaleDateString()} रोजी आयोजित करण्यात आला आहे.`
     },
     type: "event_new",
     relatedId: event._id
@@ -104,12 +104,12 @@ export const updateEventStatusService = async (id, status) => {
   // Notify all users persistently
   await notifyAllUsersService({
     title: {
-      en: `Event Status: ${event.status.en}`,
-      mr: `कार्यक्रम स्थिती: ${event.status.mr}`
+      en: `Event Status Updated: ${event.status.en}`,
+      mr: `कार्यक्रमाच्या स्थितीत बदल: ${event.status.mr}`
     },
     message: {
-      en: `The status of ${event.title.en} has been updated.`,
-      mr: `${event.title.mr} ची स्थिती अपडेट करण्यात आली आहे.`
+      en: `The status of the event "${event.title.en}" has been successfully updated.`,
+      mr: `"${event.title.mr}" या कार्यक्रमाची स्थिती यशस्वीरित्या अद्ययावत करण्यात आली आहे.`
     },
     type: "event_status_updated",
     relatedId: event._id
