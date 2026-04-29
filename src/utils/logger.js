@@ -1,7 +1,7 @@
 // src/utils/logger.js
 
 import winston from "winston";
-import path from "path";
+import "winston-daily-rotate-file";
 
 const { combine, timestamp, printf, colorize, json } = winston.format;
 
@@ -17,6 +17,18 @@ const consoleFormat = printf(({ level, message, timestamp, ...metadata }) => {
   return msg;
 });
 
+// Configure Log Rotation
+const fileRotateTransport = (filename, level = "info") => {
+  return new winston.transports.DailyRotateFile({
+    filename: `logs/${filename}-%DATE%.log`,
+    datePattern: "YYYY-MM-DD",
+    zippedArchive: true, // Compress old logs
+    maxSize: "20m",      // Rotate if file > 20MB
+    maxFiles: "14d",     // Keep logs for 14 days
+    level: level,
+  });
+};
+
 const logger = winston.createLogger({
   level: process.env.NODE_ENV === "production" ? "info" : "debug",
   format: combine(
@@ -24,19 +36,14 @@ const logger = winston.createLogger({
     process.env.NODE_ENV === "production" ? json() : combine(colorize(), consoleFormat)
   ),
   transports: [
-    // 🖥️ Console Output
+    // 🖥️ Console Output (Limited in production implicitly by winston)
     new winston.transports.Console(),
 
-    // 📂 File Output (Production only or optional)
+    // 📂 Daily Log Rotation (Production only)
     ...(process.env.NODE_ENV === "production"
       ? [
-          new winston.transports.File({
-            filename: "logs/error.log",
-            level: "error",
-          }),
-          new winston.transports.File({
-            filename: "logs/combined.log",
-          }),
+          fileRotateTransport("error", "error"),
+          fileRotateTransport("combined", "info"),
         ]
       : []),
   ],
