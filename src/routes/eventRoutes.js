@@ -12,7 +12,7 @@ import {
   archiveEvent,
   unarchiveEvent
 } from "../controllers/eventController.js";
-import { auth, staffOnly, superAdminOnly } from "../middlewares/authMiddleware.js";
+import { auth, staffOnly, adminOnly, superAdminOnly } from "../middlewares/authMiddleware.js";
 import validate from "../middlewares/validateMiddleware.js";
 import {
   createEventSchema,
@@ -22,11 +22,11 @@ import {
 
 const router = express.Router();
 
-// Create Event
+// Create Event (staff + admin + superadmin)
 router.post(
   "/",
   auth,
-  superAdminOnly,
+  staffOnly,
   validate(createEventSchema),
   createEvent
 );
@@ -40,16 +40,16 @@ router.get("/", auth, getAllEvents);
 // Get Event By ID
 router.get("/:id", auth, getEventById);
 
-// Update Event (Full)
+// Update Event (Full) (staff + admin + superadmin)
 router.put(
   "/:id",
   auth,
-  superAdminOnly,
+  staffOnly,
   validate(updateEventSchema),
   updateEvent
 );
 
-// Update Event Status
+// Update Event Status (staff + admin + superadmin)
 router.patch(
   "/:id/status",
   auth,
@@ -58,11 +58,11 @@ router.patch(
   updateEventStatus
 );
 
-// Archive / Unarchive Event
-router.patch("/:id/archive", auth, superAdminOnly, archiveEvent);
-router.patch("/:id/unarchive", auth, superAdminOnly, unarchiveEvent);
+// Archive / Unarchive Event (staff + admin + superadmin)
+router.patch("/:id/archive", auth, staffOnly, archiveEvent);
+router.patch("/:id/unarchive", auth, staffOnly, unarchiveEvent);
 
-// Delete Event
-router.delete("/:id", auth, superAdminOnly, deleteEvent);
+// Delete Event (admin + superadmin)
+router.delete("/:id", auth, adminOnly, deleteEvent);
 
 export default router;
