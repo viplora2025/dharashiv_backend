@@ -51,16 +51,10 @@ export const createDailyVisitorService = async (data) => {
     dVisitorId,
     srNo,
     dayKey,
-    name: {
-      en: name.en,
-      mr: name.mr
-    },
+    name,
     phone: phone || null,
     address: address || null,
-    reason: {
-      en: reason.en,
-      mr: reason.mr
-    },
+    reason,
     remark: remark || null,
     visitDate: actualVisitDate
   });
