@@ -15,16 +15,16 @@ const flatToBilingual = (minLen, label) =>
   );
 
 const bilingualStringSchema = flatToBilingual(3, "text");
-const bilingualLongTextSchema = flatToBilingual(10, "message");
+const bilingualLongTextSchema = flatToBilingual(1, "message");
 
 export const createAnnouncementSchema = z.object({
   body: z.object({
     title: bilingualStringSchema,
     message: bilingualLongTextSchema,
-    eventDate: z.string().refine((val) => !isNaN(Date.parse(val)), {
+    eventDate: z.string().refine((val) => !val || !isNaN(Date.parse(val)), {
       message: "Invalid event date format",
-    }),
-    eventTime: z.string().min(1, "Event time is required"),
+    }).optional(),
+    eventTime: z.string().optional(),
     location: bilingualStringSchema,
     type: bilingualStringSchema,
     status: z.enum(["Draft", "Published"]).optional(),
