@@ -7,7 +7,8 @@ import {
   getVisitorsByEvent,
   getVisitorsByAppUser,
   getVisitorById,
-  updateVisitorStatus
+  updateVisitorStatus,
+  deleteVisitor
 } from "../controllers/visitorController.js";
 import validate from "../middlewares/validateMiddleware.js";
 import {
@@ -52,6 +53,13 @@ router.patch(
   adminOnly,
   validate(updateVisitorStatusSchema),
   updateVisitorStatus
+);
+
+router.delete(
+  "/:id",
+  auth,
+  adminOnly,
+  deleteVisitor
 );
 
 export default router;

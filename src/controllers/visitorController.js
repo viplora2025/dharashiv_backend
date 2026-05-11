@@ -52,6 +52,15 @@ export const getVisitorById = async (req, res, next) => {
   }
 };
 
+export const deleteVisitor = async (req, res, next) => {
+  try {
+    await visitorService.deleteVisitorService(req.params.id);
+    sendSuccess(res, { message: "Visitor deleted successfully" });
+  } catch (err) {
+    next(err);
+  }
+};
+
 export const updateVisitorStatus = async (req, res, next) => {
   try {
     const visitor = await visitorService.updateVisitorStatusService(

@@ -43,10 +43,19 @@ const errorMiddleware = (err, req, res, next) => {
     isOperational = true;
   }
 
-  // Zod Validation Errors
+  // Zod Validation Errors (Zod 4 uses `issues`, Zod 3 used `errors`)
   if (err.name === "ZodError") {
     status = 400;
-    message = (err.errors || []).map(e => `${e.path.join('.')}: ${e.message}`).join("; ");
+    const issues = err.issues || err.errors || [];
+    message = issues
+      .map((e) => {
+        // Drop the leading "body"/"query"/"params" wrapper segment so
+        // the user sees "Reason must be at least 3 characters" instead of
+        // "body.reason: Reason must be at least ...".
+        const path = (e.path || []).slice(1).join(".");
+        return path ? `${path}: ${e.message}` : e.message;
+      })
+      .join("; ");
     isOperational = true;
   }
 
@@ -67,9 +76,12 @@ const errorMiddleware = (err, req, res, next) => {
       method: req.method,
     });
 
+    // For operational errors (validation, auth, etc) prefer the friendly
+    // `message` we constructed above over the raw `err.message` (which is
+    // a JSON-stringified array for ZodErrors).
     sendError(res, {
       status,
-      message: err.message || "Internal Server Error",
+      message: isOperational ? message : (err.message || "Internal Server Error"),
       stack: err.stack,
     });
 

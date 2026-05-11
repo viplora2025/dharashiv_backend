@@ -67,7 +67,7 @@ const complaintSchema = new mongoose.Schema(
       {
         type: {
           type: String,
-          enum: ["image", "video", "pdf", "audio"],
+          enum: ["image", "video", "pdf", "audio", "document"],
         },
         url: {
           type: String,
@@ -77,6 +77,7 @@ const complaintSchema = new mongoose.Schema(
         },
         resourceType: {
           type: String,
+          enum: ["image", "video", "raw"],
           default: "image"
         }
       },
@@ -101,7 +102,7 @@ const complaintSchema = new mongoose.Schema(
           {
             type: {
               type: String,
-              enum: ["image", "video", "pdf", "audio"],
+              enum: ["image", "video", "pdf", "audio", "document"],
             },
             url: {
               type: String,
@@ -111,6 +112,7 @@ const complaintSchema = new mongoose.Schema(
             },
             resourceType: {
               type: String,
+              enum: ["image", "video", "raw"],
               default: "image"
             }
           },

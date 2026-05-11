@@ -1,7 +1,7 @@
 // src/routes/dailyVisitorRoutes.js
 
 import express from "express";
-import { auth, adminOnly, staffOnly } from "../middlewares/authMiddleware.js";
+import { auth, staffOnly } from "../middlewares/authMiddleware.js";
 import {
   createDailyVisitor,
   updateDailyVisitor,
@@ -27,7 +27,7 @@ const router = express.Router();
 router.post(
   "/",
   auth,
-  adminOnly,
+  staffOnly,
   validate(createDailyVisitorSchema),
   createDailyVisitor
 );
@@ -35,12 +35,12 @@ router.post(
 router.put(
   "/:id",
   auth,
-  adminOnly,
+  staffOnly,
   validate(updateDailyVisitorSchema),
   updateDailyVisitor
 );
 
-router.delete("/:id", auth, adminOnly, deleteDailyVisitor);
+router.delete("/:id", auth, staffOnly, deleteDailyVisitor);
 
 router.get("/", auth, staffOnly, getAllDailyVisitors);
 

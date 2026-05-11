@@ -38,7 +38,7 @@ router.post(
 router.post("/login", userLoginLimiter, validate(loginUserSchema), loginUser);
 
 // forgot password
-router.get("/forgot/question", userForgotLimiter, getSecretQuestion);
+router.post("/forgot/question", userForgotLimiter, getSecretQuestion);
 router.post(
   "/forgot/reset",
   userForgotLimiter,
