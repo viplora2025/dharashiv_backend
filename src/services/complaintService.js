@@ -534,25 +534,21 @@ export const trackComplaintsByPhoneService = async (phone) => {
 };
 
 /* ================= USER MY COMPLAINTS ================= */
-export const getComplaintsByUserService = async (req, page, limit, status) => {
+export const getComplaintsByUserService = async (req, status) => {
   const filter = { filedBy: req.user._id };
-  if (status) filter.status = status;
 
-  const skip = (page - 1) * limit;
-  const [data, totalRecords] = await Promise.all([
-    Complaint.find(filter)
-      .select("complaintId subject status createdAt updatedAt")
-      .populate("complainer", "name")
-      .populate("department", "name")
-      .sort({ createdAt: -1 })
-      .skip(skip)
-      .limit(limit),
-    Complaint.countDocuments(filter)
-  ]);
+  if (status) {
+    filter.status = status;
+  }
 
-  return { data, totalRecords };
+  const data = await Complaint.find(filter)
+    .select("complaintId subject status createdAt updatedAt")
+    .populate("complainer", "name")
+    .populate("department", "name")
+    .sort({ createdAt: -1 });
+
+  return data;
 };
-
 /* ================= ADD CHAT MESSAGE ================== */
 export const addChatMessageService = async (id, req) => {
   if (req.role === "staff") throw new Error("Staff access denied to complaint chat");

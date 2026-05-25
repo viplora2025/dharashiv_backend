@@ -105,6 +105,20 @@ export const generateComplainerId = async () => {
 };
 
 // =============================
+// Generate Feedback ID
+// =============================
+export const generateFeedbackId = async () => {
+  const counter = await Counter.findByIdAndUpdate(
+    "feedbackId",
+    { $inc: { seq: 1 } },
+    { new: true, upsert: true }
+  );
+
+  const seqNum = counter.seq.toString().padStart(5, "0");
+  return `FDB${seqNum}`;
+};
+
+// =============================
 // Generate SubDepartment ID
 // =============================
 export const generateSubDeptId = async () => {

@@ -96,14 +96,14 @@ export const trackComplaintsByPhone = async (req, res, next) => {
 
 export const getComplaintsByUser = async (req, res, next) => {
   try {
-    const { page = 1, limit = 10, status } = req.query;
-    const result = await complaintService.getComplaintsByUserService(
+    const { status } = req.query;
+
+    const data = await complaintService.getComplaintsByUserService(
       req,
-      Number(page),
-      Number(limit),
       status
     );
-    sendSuccess(res, { data: result.data, totalRecords: result.totalRecords });
+
+    sendSuccess(res, { data });
   } catch (err) {
     next(err);
   }

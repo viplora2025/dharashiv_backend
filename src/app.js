@@ -1,8 +1,11 @@
 import express from "express";
 import helmet from "helmet";
 import cors from "cors";
+import compression from "compression";
 import mongoSanitize from "express-mongo-sanitize";
+import hpp from "hpp";
 import morgan from "morgan";
+
 import logger from "./utils/logger.js";
 
 // routes
@@ -20,67 +23,137 @@ import dailyVisitorRoutes from "./routes/dailyVisitorRoutes.js";
 import announcementRoutes from "./routes/announcementRoutes.js";
 import notificationRoute from "./routes/notificationRoute.js";
 import journeyRoutes from "./routes/journeyRoutes.js";
+import feedbackRoute from "./routes/feedbackRoute.js";
 
 import errorMiddleware from "./middlewares/errorMiddleware.js";
 import { globalApiLimiter } from "./middlewares/rateLimit.js";
 
 const app = express();
 
-// ✅ Logger middleware (Morgan)
-const morganFormat = process.env.NODE_ENV === "production" ? "combined" : "dev";
-app.use(morgan(morganFormat, {
-  stream: {
-    write: (message) => logger.info(message.trim())
-  }
-}));
-
 logger.info("🔥 app.js loaded");
 
-// ✅ CORS MUST BE FIRST — before rate limiter, helmet, or any middleware
-// that can short-circuit a request. Otherwise OPTIONS preflight responses
-// can be returned (e.g. by the rate limiter) without CORS headers and the
-// browser reports net::ERR_FAILED + "No 'Access-Control-Allow-Origin'".
-const corsOptions = {
-  origin: (origin, cb) => {
-    if (!origin) return cb(null, true);
-    return cb(null, true);
-  },
-  credentials: true,
-  methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-  allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With"],
-  optionsSuccessStatus: 204,
-};
-app.use(cors(corsOptions));
-// Explicit preflight handler — guarantees OPTIONS always responds with
-// CORS headers even if a later middleware would otherwise intercept.
-app.options("*", cors(corsOptions));
+// =========================
+// LOGGER
+// =========================
+const morganFormat =
+  process.env.NODE_ENV === "production" ? "combined" : "dev";
 
-// Global rate limiter
-app.use("/api", globalApiLimiter);
-
-// ✅ BASIC SECURITY HEADERS (CSP disabled to avoid frontend breakage)
-app.use(helmet({ contentSecurityPolicy: false }));
-
-// ✅ Sanitize MongoDB operators from request input
 app.use(
-  mongoSanitize({
-    replaceWith: "_"
+  morgan(morganFormat, {
+    stream: {
+      write: (message) => logger.info(message.trim()),
+    },
   })
 );
 
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+// =========================
+// CORS
+// =========================
+const allowedOrigins = [
+  "http://localhost:5173",
+  "http://localhost:3000",
 
-// ✅ BASIC TEST ROUTES
+  // Add production frontend URLs here
+  // "https://yourdomain.com",
+];
+
+const corsOptions = {
+  origin: (origin, cb) => {
+    // Allow mobile apps / Postman / server-to-server requests
+    if (!origin) return cb(null, true);
+
+    if (allowedOrigins.includes(origin)) {
+      return cb(null, true);
+    }
+
+    return cb(new Error("Not allowed by CORS"));
+  },
+
+  credentials: true,
+
+  methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+
+  allowedHeaders: [
+    "Content-Type",
+    "Authorization",
+    "X-Requested-With",
+  ],
+
+  optionsSuccessStatus: 204,
+};
+
+app.use(cors(corsOptions));
+
+app.options("*", cors(corsOptions));
+
+// =========================
+// RATE LIMITER
+// =========================
+app.use("/api", globalApiLimiter);
+
+// =========================
+// SECURITY HEADERS
+// =========================
+app.use(
+  helmet({
+    contentSecurityPolicy: false,
+
+    // Prevent image/pdf issues with Cloudinary/CDN
+    crossOriginResourcePolicy: false,
+  })
+);
+
+// =========================
+// RESPONSE COMPRESSION
+// =========================
+app.use(compression());
+
+// =========================
+// HTTP PARAMETER POLLUTION
+// =========================
+app.use(hpp());
+
+// =========================
+// MONGO SANITIZE
+// =========================
+app.use(
+  mongoSanitize({
+    replaceWith: "_",
+  })
+);
+
+// =========================
+// BODY PARSER
+// =========================
+app.use(
+  express.json({
+    limit: "10mb",
+  })
+);
+
+app.use(
+  express.urlencoded({
+    extended: true,
+    limit: "10mb",
+  })
+);
+
+// =========================
+// BASIC ROUTES
+// =========================
 app.get("/", (req, res) => {
   res.send("App is running...");
 });
 
 app.get("/test", (req, res) => {
-  res.json({ ok: true });
+  res.json({
+    ok: true,
+  });
 });
 
-// ✅ ROUTES (with debug logs)
+// =========================
+// ROUTES
+// =========================
 logger.info("➡️ registering routes...");
 
 app.use("/api/appUsers", appUserRoute);
@@ -122,12 +195,15 @@ logger.info("✔ announcements route loaded");
 app.use("/api/notifications", notificationRoute);
 logger.info("✔ notifications route loaded");
 
+app.use("/api/feedbacks", feedbackRoute);
+logger.info("✔ feedbacks route loaded");
+
 app.use("/api/journeys", journeyRoutes);
 logger.info("✔ journeys route loaded");
 
-
-
+// =========================
+// GLOBAL ERROR HANDLER
+// =========================
 app.use(errorMiddleware);
-
 
 export default app;
