@@ -49,44 +49,12 @@ app.use(
 // =========================
 // CORS
 // =========================
-const allowedOrigins = [
-  "http://localhost:5173",
-  "http://localhost:3000",
-  "http://localhost:8080",
-
-  // Add production frontend URLs here
-  // "https://yourdomain.com",
-];
-
-const corsOptions = {
-  origin: (origin, cb) => {
-    // Allow mobile apps / Postman / server-to-server requests
-    if (!origin) return cb(null, true);
-
-    if (allowedOrigins.includes(origin)) {
-      return cb(null, true);
-    }
-
-    return cb(new Error("Not allowed by CORS"));
-  },
-
-  credentials: true,
-
-  methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-
-  allowedHeaders: [
-    "Content-Type",
-    "Authorization",
-    "X-Requested-With",
-  ],
-
-  optionsSuccessStatus: 204,
-};
-
-app.use(cors(corsOptions));
-
-app.options("*", cors(corsOptions));
-
+app.use(
+  cors({
+    origin: true,
+    credentials: true,
+  })
+);
 // =========================
 // RATE LIMITER
 // =========================
